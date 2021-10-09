@@ -54,10 +54,10 @@ nexusPublishing {
 }
 
 signing {
-//    setRequired({
-//        !project.version.toString().endsWith("SNAPSHOT") || project.hasProperty("forceSigning")
-//    })
-    isRequired = false
+    setRequired({
+        !project.version.toString().endsWith("SNAPSHOT") || project.hasProperty("forceSigning")
+    })
+//    isRequired = false
     val signingKey: String? by project
     val signingPassword: String? by project
     useInMemoryPgpKeys(signingKey, signingPassword)

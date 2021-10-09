@@ -1,0 +1,88 @@
+---
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+    tags-ignore:
+      - "*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 17 * * *"
+
+env:
+  GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+  GRADLE_SWITCHES: "--console=plain --info --stacktrace --no-daemon"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ["java11"]
+        graal: ["21.2.0"]
+        os: ["ubuntu-latest"]
+    runs-on: ${{ matrix.os }}
+    if: github.repository_owner == 'openrewrite'
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: install-graalvm
+        run: |
+          wget -O $RUNNER_TEMP/graalvm.tgz https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-${{ matrix.graal }}/graalvm-ce-${{ matrix.java }}-linux-amd64-${{ matrix.graal }}.tar.gz && \
+          mkdir -p /opt && cd /opt && tar -zxf $RUNNER_TEMP/graalvm.tgz
+      - name: install-polyglot-languages
+        run: |
+          /opt/graalvm-ce-${{ matrix.java }}-${{ matrix.graal }}/bin/gu install nodejs python ruby R llvm-toolchain native-image
+      - name: setup-cache
+        uses: actions/cache@v2.1.6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: build
+        run: JAVA_HOME=/opt/graalvm-ce-${{ matrix.java }}-${{ matrix.graal }} ./gradlew ${GRADLE_SWITCHES} build test
+      - name: publish-tests
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
+        with:
+          files: "**/build/test-results/test/TEST-*.xml"
+
+  publish-snapshots:
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.repository_owner == 'openrewrite'
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: set-up-jdk
+        uses: actions/setup-java@v2
+        with:
+          distribution: "temurin"
+          java-version: "11"
+      - name: setup-cache
+        uses: actions/cache@v2.1.6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: publish-snapshots
+        timeout-minutes: 30
+        run: ./gradlew ${GRADLE_SWITCHES} snapshot publish -PforceSigning -x test
+        env:
+          ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.OSSRH_USERNAME }}
+          ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.OSSRH_TOKEN }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.OSSRH_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.OSSRH_SIGNING_PASSWORD }}
