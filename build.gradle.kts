@@ -82,7 +82,7 @@ dependencies {
     compileOnly("org.openrewrite:rewrite-java-11:latest.integration")
     testImplementation("org.openrewrite:rewrite-java-11:latest.integration")
 
-    implementation("org.projectlombok:lombok:latest.release")
+    compileOnly("org.projectlombok:lombok:latest.release")
     annotationProcessor("org.projectlombok:lombok:latest.release")
 
     testImplementation("org.jooq:joor:latest.release")
@@ -172,15 +172,14 @@ tasks.withType<Javadoc> {
 
 tasks.withType<ShadowJar> {
     configurations = listOf(project.configurations.runtimeClasspath.get())
-    archiveClassifier.set(null as String?)
-    relocate("org.openrewrite", "shaded.org.openrewrite") {
+    archiveClassifier.set("")
+    relocate("org.openrewrite", "openrewrite") {
         exclude("org.openrewrite.polyglot.interop.*")
     }
     dependencies {
-        include(setOf("org.openrewrite.*"))
+        include(dependency("org.openrewrite:"))
     }
 }
-
 
 tasks.named("jar") {
     enabled = false
