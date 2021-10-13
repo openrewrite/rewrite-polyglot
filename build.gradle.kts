@@ -54,10 +54,10 @@ nexusPublishing {
 }
 
 signing {
-    setRequired({
-        !project.version.toString().endsWith("SNAPSHOT") || project.hasProperty("forceSigning")
-    })
-//    isRequired = false
+//    setRequired({
+//        !project.version.toString().endsWith("SNAPSHOT") || project.hasProperty("forceSigning")
+//    })
+    isRequired = false
     val signingKey: String? by project
     val signingPassword: String? by project
     useInMemoryPgpKeys(signingKey, signingPassword)
@@ -78,23 +78,15 @@ val rewriteVersion = if (project.hasProperty("releasing")) {
 }
 
 dependencies {
-    runtimeOnly("org.slf4j:slf4j-simple:latest.release")
-    compileOnly("org.openrewrite:rewrite-java-11:latest.integration")
-    testImplementation("org.openrewrite:rewrite-java-11:latest.integration")
-
-    compileOnly("org.projectlombok:lombok:latest.release")
-    annotationProcessor("org.projectlombok:lombok:latest.release")
+    testImplementation("com.google.auto.service:auto-service:latest.release")
+    testAnnotationProcessor("com.google.auto.service:auto-service:latest.release")
 
     testImplementation("org.jooq:joor:latest.release")
-
     testImplementation("org.jetbrains.kotlin:kotlin-reflect")
     testImplementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     testImplementation("org.jetbrains.kotlin:kotlin-stdlib-common")
     testImplementation("org.openrewrite:rewrite-test:latest.integration")
     testImplementation("org.assertj:assertj-core:latest.release")
-
-    testImplementation("com.google.auto.service:auto-service:latest.release")
-    annotationProcessor("com.google.auto.service:auto-service:latest.release")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:latest.release")
     testImplementation("org.junit.jupiter:junit-jupiter-params:latest.release")
@@ -166,22 +158,6 @@ tasks.named<JavaCompile>("compileJava") {
 
 tasks.withType<Javadoc> {
     exclude(
-        "**/Generate**"
+        "org/openrewrite/polyglot/interop/*"
     )
-}
-
-tasks.withType<ShadowJar> {
-    configurations = listOf(project.configurations.runtimeClasspath.get())
-    archiveClassifier.set("")
-    relocate("org.openrewrite", "openrewrite") {
-        exclude("org.openrewrite.polyglot.interop.*")
-    }
-    dependencies {
-        include(dependency("org.openrewrite:"))
-    }
-}
-
-tasks.named("jar") {
-    enabled = false
-    dependsOn(tasks.named("shadowJar"))
 }

@@ -13,10 +13,5 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-
-@NonNullApi
-@NonNullFields
 package org.openrewrite.polyglot.interop;
 
-import org.openrewrite.internal.lang.NonNullApi;
-import org.openrewrite.internal.lang.NonNullFields;
