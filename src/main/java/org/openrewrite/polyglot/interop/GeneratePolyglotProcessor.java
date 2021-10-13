@@ -332,9 +332,11 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
                     }))
                     .forEach(this::scan);
 
-            output.add("}");
-
             classStack.pop();
+            if (classStack.size() > 0) {
+                output.add("}");
+                output.add("");
+            }
         }
 
         @Override
