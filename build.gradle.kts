@@ -14,8 +14,6 @@ plugins {
     id("nebula.maven-resolved-dependencies") version "17.3.2"
     id("nebula.release") version "15.3.1"
     id("io.github.gradle-nexus.publish-plugin") version "1.0.0"
-    id("com.github.johnrengelman.shadow") version "6.1.0"
-    id("nebula.maven-shadow-publish") version "18.0.0"
 
     id("com.github.hierynomus.license") version "0.16.1"
 
@@ -54,10 +52,10 @@ nexusPublishing {
 }
 
 signing {
-//    setRequired({
-//        !project.version.toString().endsWith("SNAPSHOT") || project.hasProperty("forceSigning")
-//    })
-    isRequired = false
+    setRequired({
+        !project.version.toString().endsWith("SNAPSHOT") || project.hasProperty("forceSigning")
+    })
+//    isRequired = false
     val signingKey: String? by project
     val signingPassword: String? by project
     useInMemoryPgpKeys(signingKey, signingPassword)

@@ -40,7 +40,7 @@ import static java.nio.file.StandardOpenOption.*;
 import static java.util.stream.Collectors.joining;
 
 @SupportedAnnotationTypes("*")
-@SupportedSourceVersion(SourceVersion.RELEASE_11)
+@SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class GeneratePolyglotProcessor extends AbstractProcessor {
 
     private static final SortedSet<String> ASSIGNABLE_TYPES = new TreeSet<>() {
@@ -116,6 +116,10 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
         return s.replaceAll("\\?", "unknown");
     }
 
+    private static String liftInnerClassName(String s) {
+        return s.replaceAll("\\.", "");
+    }
+
     private static void maybeAddImport(Map<String, Set<String>> imports, JCTree tree) {
         if (tree instanceof JCTree.JCTypeParameter
                 || tree.type.tsym.packge().toString().startsWith("java")
@@ -165,7 +169,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
         if (tree.type.isInterface()) {
             isFunctional = tree.type.tsym.getAnnotation(FunctionalInterface.class) != null;
         }
-        String name = replaceWildcardsWithUnknown(tree.toString());
+        String name = liftInnerClassName(replaceWildcardsWithUnknown(tree.toString()));
         switch (name) {
             case "String":
                 currentLine.add("string");
@@ -187,6 +191,9 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
                 } else if (isCollection) {
                     Type type = tree.type.getTypeArguments().get(0);
                     currentLine.add("Array<" + type.tsym.getSimpleName() + ">");
+                } else if (name.startsWith("WeakReference")) {
+                    Type type = tree.type.getTypeArguments().get(0);
+                    currentLine.add("Maybe<" + type.tsym.getSimpleName() + ">");
                 } else {
                     maybeAddImport(imports, tree);
                     currentLine.add(name);
@@ -242,7 +249,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             String output = sb.toString();
             if (!output.trim().isEmpty()) {
                 try (BufferedWriter out = newBufferedWriter(outputFile, CREATE, WRITE, TRUNCATE_EXISTING)) {
-                    out.write(importsJoined + "\n" + output);
+                    out.write("type Maybe<T> = T | null;\n\n" + importsJoined + "\n" + output);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -313,6 +320,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
                 output.add("");
             }
             output.add("");
+            currentLine.add("export");
 
             if (classModifiers.contains(Modifier.ABSTRACT)) {
                 currentLine.add("abstract");
@@ -338,7 +346,11 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
                 currentLine.add(nameForType(classDecl.getExtendsClause(), imports));
             }
             if (classDecl.getImplementsClause() != null && !classDecl.getImplementsClause().isEmpty()) {
-                currentLine.add("implements");
+                if (classDecl.sym.isInterface()) {
+                    currentLine.add("extends");
+                } else {
+                    currentLine.add("implements");
+                }
                 currentLine.add(classDecl.getImplementsClause().stream()
                         .map(e -> nameForType(e, imports))
                         .collect(joining(", ")));
@@ -360,7 +372,6 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
         public void visitMethodDef(JCTree.JCMethodDecl methodDecl) {
             Set<Modifier> methodModifiers = methodDecl.getModifiers().getFlags();
             boolean isPublic = methodModifiers.contains(Modifier.PUBLIC);
-            boolean isDefault = methodModifiers.contains(Modifier.DEFAULT);
             boolean isProtected = methodModifiers.contains(Modifier.PROTECTED);
             boolean isConstructor = "<init>".equals(methodDecl.getName().toString());
             boolean isInterface = methodDecl.sym.owner.isInterface();
@@ -372,8 +383,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             currentLine.add(isProtected ? "protected" : "public");
             if (methodModifiers.contains(Modifier.STATIC)) {
                 currentLine.add("static");
-            }
-            if (methodModifiers.contains(Modifier.ABSTRACT)) {
+            } else if (methodModifiers.contains(Modifier.ABSTRACT)) {
                 currentLine.add("abstract");
             }
 
@@ -387,15 +397,11 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             }
             if (!methodDecl.getTypeParameters().isEmpty()) {
                 name = methodDecl.getTypeParameters().stream()
-                        .peek(t -> maybeAddImport(imports, t))
-                        .map(tp -> replaceWildcardsWithUnknown(tp.getName().toString()))
+                        .map(tp -> nameForType(tp, imports))
                         .collect(joining(", ", name + "<", ">"));
             }
             name = methodDecl.getParameters().stream()
-                    .map(vd -> {
-                        String type = replaceWildcardsWithUnknown(vd.getType().toString());
-                        return vd.getName() + ": " + nameForType(vd.getType(), imports);
-                    })
+                    .map(vd -> vd.getName() + ": " + nameForType(vd.getType(), imports))
                     .collect(joining(", ", name + "(", "):"));
 
             currentLine.add(name);
@@ -405,7 +411,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
                     .anyMatch(s -> s.getSimpleName().equals(methodDecl.getName()));
             if (!isOverloaded && !isInterface) {
                 currentLine.add("{ return null as any; }");
-            } else if (!isInterface) {
+            } else {
                 Iterable<Symbol> overloadsIter = methodDecl.sym.owner.members()
                         .getSymbols(s -> s.getSimpleName().equals(methodDecl.getName()));
                 SortedSet<Symbol> overloads = new TreeSet<>(Comparator.comparing(
@@ -413,7 +419,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
                                 ? String.format("%03d", ((Symbol.MethodSymbol) s).getParameters().size())
                                 : "")));
                 overloadsIter.forEach(overloads::add);
-                if (overloads.first() == methodDecl.sym) {
+                if (!isInterface && (overloads.first() == methodDecl.sym)) {
                     currentLine.add("{ return null as any; }");
                 }
             }
