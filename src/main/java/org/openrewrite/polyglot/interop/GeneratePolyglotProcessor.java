@@ -52,6 +52,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             add("org.openrewrite.marker.Marker");
             add("org.openrewrite.style.Style");
             add("org.openrewrite.Validated");
+            add("org.openrewrite.PrintOutputCapture");
         }
     };
     private static final Set<String> MAP_TYPE = Collections.singleton("java.util.Map");
@@ -346,21 +347,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             currentLine.add("{\n");
             output.add(currentLine.toString());
 
-            classDecl.getMembers().stream()
-                    .sorted(Comparator.comparing(t -> {
-                        if (t instanceof JCTree.JCVariableDecl) {
-                            JCTree.JCVariableDecl varDecl = (JCTree.JCVariableDecl) t;
-                            return varDecl.getModifiers() + "_1_" + varDecl.sym.getSimpleName();
-                        } else if (t instanceof JCTree.JCMethodDecl) {
-                            JCTree.JCMethodDecl methodDecl = (JCTree.JCMethodDecl) t;
-                            return methodDecl.getModifiers() + "_2_" + methodDecl.sym.getSimpleName() + String.format("%03d", methodDecl.getParameters().size());
-                        } else if (t instanceof JCTree.JCClassDecl) {
-                            JCTree.JCClassDecl innerClassDecl = (JCTree.JCClassDecl) t;
-                            return innerClassDecl.getModifiers() + "_3_" + innerClassDecl.sym.getSimpleName();
-                        }
-                        return String.valueOf(t.type);
-                    }))
-                    .forEach(this::scan);
+            classDecl.getMembers().forEach(this::scan);
 
             classStack.pop();
             if (classStack.size() == 0) {
@@ -373,6 +360,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
         public void visitMethodDef(JCTree.JCMethodDecl methodDecl) {
             Set<Modifier> methodModifiers = methodDecl.getModifiers().getFlags();
             boolean isPublic = methodModifiers.contains(Modifier.PUBLIC);
+            boolean isDefault = methodModifiers.contains(Modifier.DEFAULT);
             boolean isProtected = methodModifiers.contains(Modifier.PROTECTED);
             boolean isConstructor = "<init>".equals(methodDecl.getName().toString());
             boolean isInterface = methodDecl.sym.owner.isInterface();
@@ -406,11 +394,6 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             name = methodDecl.getParameters().stream()
                     .map(vd -> {
                         String type = replaceWildcardsWithUnknown(vd.getType().toString());
-                        if (type.startsWith("Function")) {
-                            type = "Function";
-                        } else {
-                            maybeAddImport(imports, vd.getType());
-                        }
                         return vd.getName() + ": " + nameForType(vd.getType(), imports);
                     })
                     .collect(joining(", ", name + "(", "):"));
@@ -420,9 +403,9 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
 
             boolean isOverloaded = methodDecl.sym.owner.members()
                     .anyMatch(s -> s.getSimpleName().equals(methodDecl.getName()));
-            if (!isOverloaded || (methodDecl.sym.owner.isInterface() && methodModifiers.contains(Modifier.DEFAULT))) {
+            if (!isOverloaded && !isInterface) {
                 currentLine.add("{ return null as any; }");
-            } else {
+            } else if (!isInterface) {
                 Iterable<Symbol> overloadsIter = methodDecl.sym.owner.members()
                         .getSymbols(s -> s.getSimpleName().equals(methodDecl.getName()));
                 SortedSet<Symbol> overloads = new TreeSet<>(Comparator.comparing(
