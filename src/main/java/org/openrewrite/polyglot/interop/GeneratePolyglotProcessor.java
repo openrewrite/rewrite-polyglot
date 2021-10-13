@@ -54,6 +54,9 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             add("org.openrewrite.Validated");
         }
     };
+    private static final Set<String> MAP_TYPE = Collections.singleton("java.util.Map");
+    private static final Set<String> SET_TYPE = Collections.singleton("java.util.Set");
+    private static final Set<String> COLLECTION_TYPE = Collections.singleton("java.util.Collection");
 
     private Trees trees;
 
@@ -62,13 +65,15 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
 
     private static boolean isAssignableTo(Type type, Set<String> targetTypes) {
         if (type == null || type.tsym == null) {
-            System.err.println("type or type.tsym == null");
             return false;
         } else if (targetTypes.contains(type.tsym.getQualifiedName().toString())) {
             return true;
         } else if (type.tsym.type instanceof Type.ClassType) {
             Type.ClassType t = (Type.ClassType) type.tsym.type;
-            return isAssignableTo(t.supertype_field, targetTypes);
+            boolean superTypeAssignable = isAssignableTo(t.supertype_field, targetTypes);
+            boolean implementsAssignable = t.interfaces_field != null && t.interfaces_field.stream()
+                    .anyMatch(i -> isAssignableTo(i, targetTypes));
+            return superTypeAssignable || implementsAssignable;
         } else {
             System.err.println(type + " not found in " + targetTypes);
             return false;
@@ -106,7 +111,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
         return false;
     }
 
-    private static String removeWildcards(String s) {
+    private static String replaceWildcardsWithUnknown(String s) {
         return s.replaceAll("\\?", "unknown");
     }
 
@@ -148,6 +153,45 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             v.add(importName);
             return v;
         });
+    }
+
+    public static String nameForType(JCTree tree, Map<String, Set<String>> imports) {
+        StringJoiner currentLine = new StringJoiner(" ");
+        boolean isMap = isAssignableTo(tree, MAP_TYPE);
+        boolean isSet = isAssignableTo(tree, SET_TYPE);
+        boolean isCollection = isAssignableTo(tree, COLLECTION_TYPE);
+        boolean isFunctional = false;
+        if (tree.type.isInterface()) {
+            isFunctional = tree.type.tsym.getAnnotation(FunctionalInterface.class) != null;
+        }
+        String name = replaceWildcardsWithUnknown(tree.toString());
+        switch (name) {
+            case "String":
+                currentLine.add("string");
+                break;
+            case "int":
+            case "long":
+            case "float":
+            case "double":
+            case "Number":
+                currentLine.add("number");
+                break;
+            default:
+                if (isFunctional) {
+                    currentLine.add("Function");
+                } else if (isMap) {
+                    currentLine.add("Map");
+                } else if (isSet) {
+                    currentLine.add("Set");
+                } else if (isCollection) {
+                    Type type = tree.type.getTypeArguments().get(0);
+                    currentLine.add("Array<" + type.tsym.getSimpleName() + ">");
+                } else {
+                    maybeAddImport(imports, tree);
+                    currentLine.add(name);
+                }
+        }
+        return currentLine.toString();
     }
 
     @Override
@@ -224,13 +268,11 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
         return (JCTree.JCCompilationUnit) path.getCompilationUnit();
     }
 
-    private class StringOutputTreeScanner extends TreeScanner {
+    private static class StringOutputTreeScanner extends TreeScanner {
         private final Map<String, Set<String>> imports;
 
         private final StringJoiner output = new StringJoiner("\n");
         private final Stack<JCTree.JCClassDecl> classStack = new Stack<>();
-
-        private StringJoiner currentLine;
 
         public StringOutputTreeScanner(Map<String, Set<String>> imports) {
             this.imports = imports;
@@ -239,45 +281,46 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
         @Override
         public void visitVarDef(JCTree.JCVariableDecl vd) {
             if (vd.sym != null && vd.sym.owner == classStack.peek().sym) {
-                String type = removeWildcards(vd.getType().toString());
-                switch (vd.getType().toString()) {
-                    case "String":
-                        currentLine.add("string");
-                        break;
-                    case "int":
-                    case "long":
-                    case "float":
-                    case "double":
-                    case "Number":
-                        currentLine.add("number");
-                        break;
-                    default:
-                        maybeAddImport(imports, vd.getType());
-                        currentLine.add(vd.getName() + ": " + type);
+                StringJoiner currentLine = new StringJoiner(" ");
+                if (vd.getModifiers().getFlags().contains(Modifier.STATIC)) {
+                    currentLine.add("\tstatic " + vd.getName().toString() + ":");
+                } else {
+                    currentLine.add("\t" + vd.getName().toString() + ":");
                 }
+                currentLine.add(nameForType(vd.getType(), imports));
+                output.add(currentLine.toString());
+                output.add("");
             }
         }
 
         @Override
         public void visitClassDef(JCTree.JCClassDecl classDecl) {
             classStack.push(classDecl);
-            currentLine = new StringJoiner(" ");
 
+            StringJoiner currentLine = new StringJoiner(" ");
             Set<Modifier> classModifiers = classDecl.getModifiers().getFlags();
-            if (classStack.size() < 1 && !isAssignableTo(classDecl, ASSIGNABLE_TYPES)) {
-                output.add("/* Skipping class: " + classDecl.sym.getQualifiedName() + " */\n");
+            boolean isPublicInnerClass = classStack.size() > 0 && classModifiers.contains(Modifier.PUBLIC);
+            boolean isAssignable = isAssignableTo(classDecl, ASSIGNABLE_TYPES);
+            if (!isPublicInnerClass || !isAssignable) {
+                classStack.pop();
+                output.add("/* Skipped transpiling: " + classDecl.sym.getQualifiedName() + " */\n");
                 return;
-            } else if (classStack.size() > 1) {
+            }
+
+            if (classStack.size() > 1) {
                 output.add("}");
                 output.add("");
             }
-
             output.add("");
 
             if (classModifiers.contains(Modifier.ABSTRACT)) {
                 currentLine.add("abstract");
             }
-            currentLine.add("class");
+            if (classDecl.sym.isInterface()) {
+                currentLine.add("interface");
+            } else {
+                currentLine.add("class");
+            }
             String name = classStack.stream()
                     .map(cd -> cd.getSimpleName().toString())
                     .collect(joining());
@@ -291,28 +334,12 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
 
             if (classDecl.getExtendsClause() != null) {
                 currentLine.add("extends");
-                switch (classDecl.getExtendsClause().getKind()) {
-                    case IDENTIFIER: {
-                        JCTree.JCIdent ident = (JCTree.JCIdent) classDecl.getExtendsClause();
-                        maybeAddImport(imports, ident);
-                        currentLine.add(ident.getName());
-                        break;
-                    }
-                    case PARAMETERIZED_TYPE: {
-                        JCTree.JCTypeApply type = (JCTree.JCTypeApply) classDecl.getExtendsClause();
-                        maybeAddImport(imports, type);
-                        currentLine.add(type.getType().toString());
-                        break;
-                    }
-                    default:
-                        processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, "Unsupported extends: " + classDecl.getExtendsClause());
-                }
+                currentLine.add(nameForType(classDecl.getExtendsClause(), imports));
             }
             if (classDecl.getImplementsClause() != null && !classDecl.getImplementsClause().isEmpty()) {
                 currentLine.add("implements");
                 currentLine.add(classDecl.getImplementsClause().stream()
-                        .peek(t -> maybeAddImport(imports, t))
-                        .map(JCTree::toString)
+                        .map(e -> nameForType(e, imports))
                         .collect(joining(", ")));
             }
 
@@ -322,18 +349,21 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             classDecl.getMembers().stream()
                     .sorted(Comparator.comparing(t -> {
                         if (t instanceof JCTree.JCVariableDecl) {
-                            return "1_" + ((JCTree.JCVariableDecl) t).sym.toString();
+                            JCTree.JCVariableDecl varDecl = (JCTree.JCVariableDecl) t;
+                            return varDecl.getModifiers() + "_1_" + varDecl.sym.getSimpleName();
                         } else if (t instanceof JCTree.JCMethodDecl) {
-                            return "2_" + ((JCTree.JCMethodDecl) t).sym.toString();
+                            JCTree.JCMethodDecl methodDecl = (JCTree.JCMethodDecl) t;
+                            return methodDecl.getModifiers() + "_2_" + methodDecl.sym.getSimpleName() + String.format("%03d", methodDecl.getParameters().size());
                         } else if (t instanceof JCTree.JCClassDecl) {
-                            return "3_" + ((JCTree.JCClassDecl) t).sym.toString();
+                            JCTree.JCClassDecl innerClassDecl = (JCTree.JCClassDecl) t;
+                            return innerClassDecl.getModifiers() + "_3_" + innerClassDecl.sym.getSimpleName();
                         }
                         return String.valueOf(t.type);
                     }))
                     .forEach(this::scan);
 
             classStack.pop();
-            if (classStack.size() > 0) {
+            if (classStack.size() == 0) {
                 output.add("}");
                 output.add("");
             }
@@ -350,7 +380,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
                 return;
             }
 
-            currentLine = new StringJoiner(" ");
+            StringJoiner currentLine = new StringJoiner(" ");
             currentLine.add(isProtected ? "protected" : "public");
             if (methodModifiers.contains(Modifier.STATIC)) {
                 currentLine.add("static");
@@ -370,52 +400,34 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             if (!methodDecl.getTypeParameters().isEmpty()) {
                 name = methodDecl.getTypeParameters().stream()
                         .peek(t -> maybeAddImport(imports, t))
-                        .map(tp -> removeWildcards(tp.getName().toString()))
+                        .map(tp -> replaceWildcardsWithUnknown(tp.getName().toString()))
                         .collect(joining(", ", name + "<", ">"));
             }
             name = methodDecl.getParameters().stream()
                     .map(vd -> {
-                        String type = removeWildcards(vd.getType().toString());
+                        String type = replaceWildcardsWithUnknown(vd.getType().toString());
                         if (type.startsWith("Function")) {
                             type = "Function";
                         } else {
                             maybeAddImport(imports, vd.getType());
                         }
-                        return vd.getName() + ": " + type;
+                        return vd.getName() + ": " + nameForType(vd.getType(), imports);
                     })
                     .collect(joining(", ", name + "(", "):"));
 
             currentLine.add(name);
-
-            String returnType = removeWildcards(methodDecl.getReturnType().toString());
-            switch (returnType) {
-                case "String":
-                    currentLine.add("string");
-                    break;
-                case "int":
-                case "long":
-                case "float":
-                case "double":
-                case "Number":
-                    currentLine.add("number");
-                    break;
-                default:
-                    if (!returnType.startsWith(classStack.peek().getSimpleName().toString())) {
-                        maybeAddImport(imports, methodDecl.getReturnType());
-                    }
-                    currentLine.add(returnType);
-            }
+            currentLine.add(nameForType(methodDecl.getReturnType(), imports));
 
             boolean isOverloaded = methodDecl.sym.owner.members()
                     .anyMatch(s -> s.getSimpleName().equals(methodDecl.getName()));
-            if (!isOverloaded) {
+            if (!isOverloaded || (methodDecl.sym.owner.isInterface() && methodModifiers.contains(Modifier.DEFAULT))) {
                 currentLine.add("{ return null as any; }");
             } else {
                 Iterable<Symbol> overloadsIter = methodDecl.sym.owner.members()
                         .getSymbols(s -> s.getSimpleName().equals(methodDecl.getName()));
                 SortedSet<Symbol> overloads = new TreeSet<>(Comparator.comparing(
                         s -> s.getSimpleName() + "_" + (s instanceof Symbol.MethodSymbol
-                                ? String.format("%d{2}", ((Symbol.MethodSymbol) s).getParameters().size())
+                                ? String.format("%03d", ((Symbol.MethodSymbol) s).getParameters().size())
                                 : "")));
                 overloadsIter.forEach(overloads::add);
                 if (overloads.first() == methodDecl.sym) {
