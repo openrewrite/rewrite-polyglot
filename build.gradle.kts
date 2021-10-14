@@ -1,6 +1,5 @@
 import nebula.plugin.release.git.base.ReleasePluginExtension
 import nl.javadude.gradle.plugins.license.LicenseExtension
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.util.*
 
 plugins {
@@ -8,7 +7,7 @@ plugins {
     `maven-publish`
     signing
 
-    id("org.jetbrains.kotlin.jvm") version "1.5.21"
+    id("org.jetbrains.kotlin.jvm") version "1.5.31"
 
     id("nebula.maven-resolved-dependencies") version "17.3.2"
     id("nebula.release") version "15.3.1"
@@ -91,25 +90,30 @@ dependencies {
     testRuntimeOnly("ch.qos.logback:logback-classic:1.0.13")
 }
 
-tasks.withType(KotlinCompile::class.java).configureEach {
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-}
-
 tasks.named<Test>("test") {
     useJUnitPlatform()
     jvmArgs = listOf("-XX:+UnlockDiagnosticVMOptions", "-XX:+ShowHiddenFrames")
 }
 
 tasks.named<JavaCompile>("compileJava") {
-    sourceCompatibility = JavaVersion.VERSION_1_8.toString()
-    targetCompatibility = JavaVersion.VERSION_1_8.toString()
+    sourceCompatibility = JavaVersion.VERSION_11.toString()
+    targetCompatibility = JavaVersion.VERSION_11.toString()
 
     options.isFork = true
     options.forkOptions.executable = "javac"
     options.encoding = "UTF-8"
-    options.compilerArgs.add("-parameters")
+    options.compilerArgs.addAll(
+        listOf(
+            "-parameters",
+            "--add-exports", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+            "--add-exports", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+            "--add-exports", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+            "--add-exports", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+            "--add-exports", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+            "--add-exports", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
+            "--add-exports", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED"
+        )
+    )
 }
 
 configure<nebula.plugin.contacts.ContactsExtension> {
@@ -134,23 +138,6 @@ configure<PublishingExtension> {
             suppressPomMetadataWarningsFor("runtimeElements")
         }
     }
-}
-
-tasks.named<JavaCompile>("compileJava") {
-    sourceCompatibility = JavaVersion.VERSION_11.toString()
-    targetCompatibility = JavaVersion.VERSION_11.toString()
-
-    options.compilerArgs.addAll(
-        listOf(
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED"
-        )
-    )
 }
 
 tasks.withType<Javadoc> {

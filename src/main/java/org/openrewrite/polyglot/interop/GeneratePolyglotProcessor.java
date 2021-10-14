@@ -23,7 +23,9 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeScanner;
 
-import javax.annotation.processing.*;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
@@ -31,19 +33,19 @@ import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static java.nio.file.Files.newBufferedWriter;
 import static java.nio.file.StandardOpenOption.*;
 import static java.util.stream.Collectors.joining;
 
-@SupportedAnnotationTypes("*")
-@SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class GeneratePolyglotProcessor extends AbstractProcessor {
 
-    private static final SortedSet<String> ASSIGNABLE_TYPES = new TreeSet<>() {
+    private static final SortedSet<String> ASSIGNABLE_TYPES = new TreeSet<String>() {
         {
             add("org.openrewrite.Recipe");
             add("org.openrewrite.Tree");
@@ -64,6 +66,16 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
     public GeneratePolyglotProcessor() {
     }
 
+    @Override
+    public Set<String> getSupportedAnnotationTypes() {
+        return Collections.singleton("*");
+    }
+
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.RELEASE_11;
+    }
+
     private static boolean isAssignableTo(Type type, Set<String> targetTypes) {
         if (type == null || type.tsym == null) {
             return false;
@@ -76,7 +88,6 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
                     .anyMatch(i -> isAssignableTo(i, targetTypes));
             return superTypeAssignable || implementsAssignable;
         } else {
-            System.err.println(type + " not found in " + targetTypes);
             return false;
         }
     }
@@ -185,9 +196,12 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
                 if (isFunctional) {
                     currentLine.add("Function");
                 } else if (isMap) {
-                    currentLine.add("Map");
+                    currentLine.add(tree.type.getTypeArguments().stream()
+                            .map(t -> t.tsym.getSimpleName().toString())
+                            .collect(Collectors.joining(", ", "Map<", ">")));
                 } else if (isSet) {
-                    currentLine.add("Set");
+                    Type type = tree.type.getTypeArguments().get(0);
+                    currentLine.add("Set<" + type.tsym.getSimpleName() + ">");
                 } else if (isCollection) {
                     Type type = tree.type.getTypeArguments().get(0);
                     currentLine.add("Array<" + type.tsym.getSimpleName() + ">");
@@ -221,8 +235,6 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
                 .map(this::toUnit)
                 .filter(jcu -> jcu != null && !jcu.getSourceFile().getName().contains("package-info"))
                 .forEach(jcu -> {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE,
-                            "Outputting Polyglot interop stubs for: " + jcu.getSourceFile().getName());
                     String pkgName = jcu.getPackageName().toString();
                     StringOutputTreeScanner scanner = new StringOutputTreeScanner(imports.computeIfAbsent(pkgName, _k -> new HashMap<>()));
                     scanner.scan(jcu);
@@ -239,17 +251,21 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
         outputTypes.forEach((pkg, sb) -> {
             String importsJoined = imports.get(pkg).entrySet().stream()
                     .map(perPkg -> perPkg.getValue().stream()
-                            .collect(joining(", ", "import { ", " } from '@openrewrite/types/" + perPkg.getKey() + ".d';")))
+                            .collect(joining(", ", "import { ", " } from '@root/" + perPkg.getKey() + ".d';")))
                     .collect(joining("\n"));
 
-            Path outputDir = Paths.get("src/main/typescript/");
-            //noinspection ResultOfMethodCallIgnored
-            outputDir.toFile().mkdirs();
-            Path outputFile = outputDir.resolve(Paths.get(pkg + ".d.ts"));
             String output = sb.toString();
             if (!output.trim().isEmpty()) {
-                try (BufferedWriter out = newBufferedWriter(outputFile, CREATE, WRITE, TRUNCATE_EXISTING)) {
-                    out.write("type Maybe<T> = T | null;\n\n" + importsJoined + "\n" + output);
+                try {
+                    Path outputDir = Paths.get("src/main/typescript/");
+                    Files.createDirectories(outputDir);
+                    Path outputFile = outputDir.resolve(Paths.get(pkg + ".d.ts"));
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE,
+                            "Outputting Polyglot interop stubs for: " + outputFile.toAbsolutePath());
+                    try (BufferedWriter out = newBufferedWriter(outputFile, CREATE, WRITE, TRUNCATE_EXISTING)) {
+                        out.write(importsJoined);
+                        out.write(output);
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
