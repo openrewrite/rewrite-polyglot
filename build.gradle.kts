@@ -1,3 +1,4 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import nebula.plugin.release.git.base.ReleasePluginExtension
 import nl.javadude.gradle.plugins.license.LicenseExtension
 import java.util.*
@@ -8,6 +9,7 @@ plugins {
     signing
 
     id("org.jetbrains.kotlin.jvm") version "1.5.31"
+    id("com.github.johnrengelman.shadow") version "6.1.0"
 
     id("nebula.maven-resolved-dependencies") version "17.3.2"
     id("nebula.release") version "15.3.1"
@@ -53,7 +55,6 @@ signing {
     setRequired({
         !project.version.toString().endsWith("SNAPSHOT") || project.hasProperty("forceSigning")
     })
-//    isRequired = false
     val signingKey: String? by project
     val signingPassword: String? by project
     useInMemoryPgpKeys(signingKey, signingPassword)
@@ -73,9 +74,18 @@ val rewriteVersion = if (project.hasProperty("releasing")) {
     "latest.integration"
 }
 
+val compiler = javaToolchains.compilerFor {
+    languageVersion.set(JavaLanguageVersion.of(8))
+}
+val tools = compiler.get().metadata.installationPath.file("lib/tools.jar")
+
 dependencies {
-    testImplementation("com.google.auto.service:auto-service:latest.release")
-    testAnnotationProcessor("com.google.auto.service:auto-service:latest.release")
+    compileOnly(files(tools))
+    implementation("org.openrewrite:rewrite-java-11:latest.integration")
+    runtimeOnly("org.slf4j:slf4j-simple:latest.release")
+
+    compileOnly("org.projectlombok:lombok:latest.release")
+    annotationProcessor("org.projectlombok:lombok:latest.release")
 
     testImplementation("org.jooq:joor:latest.release")
     testImplementation("org.jetbrains.kotlin:kotlin-reflect")
@@ -87,7 +97,6 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:latest.release")
     testImplementation("org.junit.jupiter:junit-jupiter-params:latest.release")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:latest.release")
-    testRuntimeOnly("ch.qos.logback:logback-classic:1.0.13")
 }
 
 tasks.named<Test>("test") {
@@ -96,24 +105,13 @@ tasks.named<Test>("test") {
 }
 
 tasks.named<JavaCompile>("compileJava") {
-    sourceCompatibility = JavaVersion.VERSION_11.toString()
-    targetCompatibility = JavaVersion.VERSION_11.toString()
+    sourceCompatibility = JavaVersion.VERSION_1_8.toString()
+    targetCompatibility = JavaVersion.VERSION_1_8.toString()
 
     options.isFork = true
     options.forkOptions.executable = "javac"
     options.encoding = "UTF-8"
-    options.compilerArgs.addAll(
-        listOf(
-            "-parameters",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
-            "--add-exports", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED"
-        )
-    )
+    options.compilerArgs.addAll(listOf("-parameters", "--release", "8"))
 }
 
 configure<nebula.plugin.contacts.ContactsExtension> {
@@ -144,4 +142,21 @@ tasks.withType<Javadoc> {
     exclude(
         "org/openrewrite/polyglot/interop/*"
     )
+}
+
+tasks.withType<ShadowJar> {
+    configurations = listOf(project.configurations.runtimeClasspath.get())
+    dependencies {
+        include(dependency("org.openrewrite:"))
+        include(dependency("org.slf4j:"))
+    }
+    relocate("org.slf4j", "org.openrewrite.polyglot.shaded.slf4j")
+    relocate("org.openrewrite", "org.openrewrite.polyglot.shaded") {
+        exclude("org.openrewrite.polyglot.interop.*")
+    }
+}
+
+tasks.named("jar") {
+    enabled = false
+    dependsOn(tasks.named("shadowJar"))
 }
