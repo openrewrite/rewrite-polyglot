@@ -100,7 +100,6 @@ tasks.named<JavaCompile>("compileJava") {
     targetCompatibility = JavaVersion.VERSION_11.toString()
 
     options.isFork = true
-    options.forkOptions.executable = "javac"
     options.encoding = "UTF-8"
     options.compilerArgs.addAll(
         listOf(
