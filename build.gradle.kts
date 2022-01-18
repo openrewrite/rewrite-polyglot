@@ -14,6 +14,7 @@ plugins {
     id("io.github.gradle-nexus.publish-plugin") version "1.0.0"
 
     id("com.github.hierynomus.license") version "0.16.1"
+    id("org.owasp.dependencycheck") version "6.5.3"
 
     id("nebula.maven-publish") version "17.3.2"
     id("nebula.contacts") version "5.1.0"
@@ -28,6 +29,11 @@ apply(plugin = "nebula.publish-verification")
 
 configure<ReleasePluginExtension> {
     defaultVersionStrategy = nebula.plugin.release.NetflixOssStrategies.SNAPSHOT(project)
+}
+
+dependencyCheck {
+    analyzers.assemblyEnabled = false
+    failBuildOnCVSS = 9.0F
 }
 
 group = "org.openrewrite"

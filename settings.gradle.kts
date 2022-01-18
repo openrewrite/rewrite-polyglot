@@ -8,8 +8,8 @@ pluginManagement {
 rootProject.name = "rewrite-polyglot"
 
 plugins {
-    id("com.gradle.enterprise") version "3.7"
-    id("com.gradle.common-custom-user-data-gradle-plugin") version "1.4.2"
+    id("com.gradle.enterprise") version "latest.release"
+    id("com.gradle.common-custom-user-data-gradle-plugin") version "latest.release"
 }
 
 gradleEnterprise {
