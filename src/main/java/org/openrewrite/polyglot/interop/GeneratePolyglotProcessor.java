@@ -45,18 +45,18 @@ import static java.util.stream.Collectors.joining;
 
 public class GeneratePolyglotProcessor extends AbstractProcessor {
 
-    private static final SortedSet<String> ASSIGNABLE_TYPES = new TreeSet<String>() {
-        {
-            add("org.openrewrite.Recipe");
-            add("org.openrewrite.Tree");
-            add("org.openrewrite.TreeVisitor");
-            add("org.openrewrite.ExecutionContext");
-            add("org.openrewrite.marker.Marker");
-            add("org.openrewrite.style.Style");
-            add("org.openrewrite.Validated");
-            add("org.openrewrite.PrintOutputCapture");
-        }
-    };
+    private static final SortedSet<String> ASSIGNABLE_TYPES;
+    static {
+        ASSIGNABLE_TYPES = new TreeSet<>();
+        ASSIGNABLE_TYPES.add("org.openrewrite.Recipe");
+        add("org.openrewrite.Tree");
+        add("org.openrewrite.TreeVisitor");
+        add("org.openrewrite.ExecutionContext");
+        add("org.openrewrite.marker.Marker");
+        add("org.openrewrite.style.Style");
+        add("org.openrewrite.Validated");
+        add("org.openrewrite.PrintOutputCapture");
+    }
     private static final Set<String> MAP_TYPE = Collections.singleton("java.util.Map");
     private static final Set<String> SET_TYPE = Collections.singleton("java.util.Set");
     private static final Set<String> COLLECTION_TYPE = Collections.singleton("java.util.Collection");
@@ -162,7 +162,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
         } else {
             return;
         }
-        imports.compute(importPkg, (_k, v) -> {
+        imports.compute(importPkg, (k, v) -> {
             if (v == null) {
                 v = new HashSet<>();
             }
@@ -378,7 +378,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             classDecl.getMembers().forEach(this::scan);
 
             classStack.pop();
-            if (classStack.size() == 0) {
+            if (classStack.isEmpty()) {
                 output.add("}");
                 output.add("");
             }
