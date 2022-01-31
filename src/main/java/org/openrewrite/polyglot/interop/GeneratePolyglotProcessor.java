@@ -102,7 +102,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             if (classDecl.getExtendsClause() != null) {
                 isAssignable = isAssignableTo(classDecl.getExtendsClause(), targetTypes);
             } else if (classDecl.getImplementsClause() != null) {
-                List<JCTree.JCExpression> types = classDecl.getImplementsClause();
+                /*~~>*/List<JCTree.JCExpression> types = classDecl.getImplementsClause();
                 for (int i = 0, len = types.size(); i < len && !isAssignable; i++) {
                     isAssignable = isAssignableTo(types.get(i), targetTypes);
                 }
