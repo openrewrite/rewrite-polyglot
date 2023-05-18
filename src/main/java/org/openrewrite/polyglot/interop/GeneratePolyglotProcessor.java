@@ -281,7 +281,7 @@ public class GeneratePolyglotProcessor extends AbstractProcessor {
             try {
                 path = trees.getPath(element);
             } catch (NullPointerException ignore) {
-                // Happens if a package-info.java doesn't conatin a package declaration.
+                // Happens if a package-info.java doesn't contain a package declaration.
                 // We can safely ignore those, since they do not need any processing
             }
         }
