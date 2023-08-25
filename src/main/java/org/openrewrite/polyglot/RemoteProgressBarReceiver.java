@@ -15,8 +15,8 @@
  */
 package org.openrewrite.polyglot;
 
-import org.openrewrite.RemoteProgressBarSender.Request.Type;
 import org.openrewrite.internal.lang.Nullable;
+import org.openrewrite.polyglot.RemoteProgressBarSender.Request.Type;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -30,7 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static java.util.Objects.requireNonNull;
-import static org.openrewrite.RemoteProgressBarSender.MAX_MESSAGE_SIZE;
+import static org.openrewrite.polyglot.RemoteProgressBarSender.MAX_MESSAGE_SIZE;
 
 public class RemoteProgressBarReceiver implements ProgressBar {
     private static final ExecutorService PROGRESS_RECEIVER_POOL = Executors.newCachedThreadPool();
