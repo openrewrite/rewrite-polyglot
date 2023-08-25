@@ -1,10 +1,3 @@
-pluginManagement {
-    repositories {
-        mavenLocal()
-        gradlePluginPortal()
-    }
-}
-
 rootProject.name = "rewrite-polyglot"
 
 plugins {
@@ -42,5 +35,4 @@ gradleEnterprise {
         this as com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
         publishIfAuthenticated()
     }
-
 }

@@ -13,5 +13,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.openrewrite.polyglot.interop;
+@NonNullApi
+package org.openrewrite.polyglot;
+
+import org.openrewrite.internal.lang.NonNullApi;
 
