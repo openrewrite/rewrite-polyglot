@@ -163,12 +163,13 @@ public class OmniParser implements Parser {
         return sizeThresholdMb > 0 && fileSize > sizeThresholdMb * 1024L * 1024L;
     }
 
-    private boolean isExcluded(Path path, Path rootDir) {
-        if (exclusions.contains(path)) {
+    boolean isExcluded(Path path, Path rootDir) {
+        Path relativePath = rootDir.relativize(path);
+        if (exclusions.contains(relativePath)) {
             return true;
         }
         for (PathMatcher excluded : exclusionMatchers) {
-            if (excluded.matches(rootDir.relativize(path))) {
+            if (excluded.matches(relativePath)) {
                 return true;
             }
         }
@@ -177,12 +178,12 @@ public class OmniParser implements Parser {
 
     private boolean isParsedAsPlainText(Path path, Path rootDir) {
         if (!plainTextMasks.isEmpty()) {
-            Path computed = rootDir.relativize(path);
-            if (!computed.startsWith("/")) {
-                computed = Paths.get("/").resolve(computed);
+            Path relativePath = rootDir.toAbsolutePath().relativize(path.toAbsolutePath());
+            if (!relativePath.startsWith("/")) {
+                relativePath = Paths.get("/").resolve(relativePath);
             }
             for (PathMatcher matcher : plainTextMasks) {
-                if (matcher.matches(computed)) {
+                if (matcher.matches(relativePath)) {
                     return true;
                 }
             }
