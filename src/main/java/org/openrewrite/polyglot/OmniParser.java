@@ -26,9 +26,7 @@ import org.openrewrite.internal.lang.Nullable;
 import org.openrewrite.json.JsonParser;
 import org.openrewrite.properties.PropertiesParser;
 import org.openrewrite.protobuf.ProtoParser;
-import org.openrewrite.quark.QuarkParser;
 import org.openrewrite.shaded.jgit.ignore.IgnoreNode;
-import org.openrewrite.text.PlainTextParser;
 import org.openrewrite.xml.XmlParser;
 import org.openrewrite.yaml.YamlParser;
 
@@ -39,14 +37,29 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class OmniParser implements Parser {
-    private static final Collection<String> DEFAULT_IGNORED_DIRECTORIES = Arrays.asList(
+    /**
+     * Does not include text and quark parsers. We leave it up to the caller to determine
+     * what the division of labor should be between PlainText and the Quark parsers, if any.
+     */
+    public static List<Parser> RESOURCE_PARSERS = new ArrayList<>(asList(
+            new JsonParser(),
+            new XmlParser(),
+            new YamlParser(),
+            new PropertiesParser(),
+            new ProtoParser(),
+            HclParser.builder().build()
+    ));
+
+    private static final Collection<String> DEFAULT_IGNORED_DIRECTORIES = asList(
             "build",
             "target",
             "out",
@@ -64,7 +77,6 @@ public class OmniParser implements Parser {
     private final Collection<PathMatcher> exclusionMatchers;
     private final int sizeThresholdMb;
     private final Collection<Path> excludedDirectories;
-    private final Collection<PathMatcher> plainTextMasks;
     private final boolean parallel;
     private final List<Parser> parsers;
     private final Consumer<Integer> onParse;
@@ -105,8 +117,8 @@ public class OmniParser implements Parser {
                     if (!attrs.isOther() && !attrs.isSymbolicLink() &&
                         !isExcluded(file, rootDir) &&
                         !isGitignored(gitignoreStack.values(), file, rootDir)) {
-                        if (!isOverSizeThreshold(attrs.size()) && !isParsedAsPlainText(file, rootDir)) {
-                            for (Parser parser : parsers) {
+                        if (!isOverSizeThreshold(attrs.size())) {
+                            for (Parser parser : RESOURCE_PARSERS) {
                                 if (parser.accept(file)) {
                                     parseable.add(file);
                                     break;
@@ -123,7 +135,8 @@ public class OmniParser implements Parser {
                     return FileVisitResult.CONTINUE;
                 }
             });
-        } catch (IOException e) {
+        } catch (
+                IOException e) {
             // cannot happen, since none of the visit methods throw an IOException
             throw new UncheckedIOException(e);
         }
@@ -135,7 +148,7 @@ public class OmniParser implements Parser {
                                           ExecutionContext ctx) {
         return StreamSupport.stream(sources.spliterator(), parallel).flatMap(input -> {
             Path path = input.getPath();
-            for (Parser parser : parsers) {
+            for (Parser parser : RESOURCE_PARSERS) {
                 if (parser.accept(path)) {
                     return parser.parseInputs(Collections.singletonList(input), relativeTo, ctx);
                 }
@@ -146,7 +159,7 @@ public class OmniParser implements Parser {
 
     @Override
     public boolean accept(Path path) {
-        for (Parser parser : parsers) {
+        for (Parser parser : RESOURCE_PARSERS) {
             if (parser.accept(path)) {
                 return true;
             }
@@ -171,21 +184,6 @@ public class OmniParser implements Parser {
         for (PathMatcher excluded : exclusionMatchers) {
             if (excluded.matches(relativePath)) {
                 return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean isParsedAsPlainText(Path path, Path rootDir) {
-        if (!plainTextMasks.isEmpty()) {
-            Path relativePath = rootDir.toAbsolutePath().relativize(path.toAbsolutePath());
-            if (!relativePath.startsWith("/")) {
-                relativePath = Paths.get("/").resolve(relativePath);
-            }
-            for (PathMatcher matcher : plainTextMasks) {
-                if (matcher.matches(relativePath)) {
-                    return true;
-                }
             }
         }
         return false;
@@ -225,8 +223,17 @@ public class OmniParser implements Parser {
         return false;
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public static Builder builder(Parser... parsers) {
+        return builder(asList(parsers));
+    }
+
+    public static Builder builder(List<Parser> parsers, Parser... more) {
+        if (more.length > 0) {
+            List<Parser> all = new ArrayList<>(parsers);
+            all.addAll(asList(more));
+            parsers = all;
+        }
+        return new Builder(parsers);
     }
 
     public static class Builder extends Parser.Builder {
@@ -234,24 +241,14 @@ public class OmniParser implements Parser {
         private Collection<PathMatcher> exclusionMatchers = emptyList();
         private int sizeThresholdMb = 10;
         private Collection<Path> excludedDirectories = emptyList();
-        private Collection<PathMatcher> plainTextMasks = emptyList();
         private boolean parallel;
         private Consumer<Integer> onParse = inputCount -> {
         };
+        private final List<Parser> parsers;
 
-        private List<Parser> parsers = new ArrayList<>(Arrays.asList(
-                new JsonParser(),
-                new XmlParser(),
-                new YamlParser(),
-                new PropertiesParser(),
-                new ProtoParser(),
-                HclParser.builder().build(),
-                new PlainTextParser(),
-                new QuarkParser()
-        ));
-
-        public Builder() {
+        public Builder(List<Parser> parsers) {
             super(SourceFile.class);
+            this.parsers = parsers;
         }
 
         public Builder exclusions(Collection<Path> exclusions) {
@@ -264,6 +261,12 @@ public class OmniParser implements Parser {
             return this;
         }
 
+        public Builder exclusionMatchers(Path basePath, Iterable<String> exclusions) {
+            return exclusionMatchers(StreamSupport.stream(exclusions.spliterator(), false)
+                    .map((o) -> basePath.getFileSystem().getPathMatcher("glob:" + o))
+                    .collect(Collectors.toList()));
+        }
+
         public Builder sizeThresholdMb(int sizeThresholdMb) {
             this.sizeThresholdMb = sizeThresholdMb;
             return this;
@@ -274,25 +277,8 @@ public class OmniParser implements Parser {
             return this;
         }
 
-        public Builder plainTextMasks(Collection<PathMatcher> plainTextMasks) {
-            this.plainTextMasks = plainTextMasks;
-            return this;
-        }
-
         public Builder onParse(Consumer<Integer> onParse) {
             this.onParse = onParse;
-            return this;
-        }
-
-        public Builder parsers(Parser... parsers) {
-            this.parsers = Arrays.asList(parsers);
-            return this;
-        }
-
-        public Builder addParsers(Parser... parsers) {
-            for (int i = parsers.length - 1; i >= 0; i--) {
-                this.parsers.add(0, parsers[i]);
-            }
             return this;
         }
 
@@ -311,7 +297,7 @@ public class OmniParser implements Parser {
         @Override
         public OmniParser build() {
             return new OmniParser(exclusions, exclusionMatchers, sizeThresholdMb,
-                    excludedDirectories, plainTextMasks, parallel, parsers, onParse);
+                    excludedDirectories, parallel, parsers, onParse);
         }
 
         @Override

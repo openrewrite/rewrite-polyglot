@@ -26,7 +26,7 @@ public class OmniParserTest {
 
     @Test
     void isExcluded() {
-        OmniParser parser = OmniParser.builder()
+        OmniParser parser = OmniParser.builder(OmniParser.RESOURCE_PARSERS)
           .exclusions(List.of(Paths.get("pom.xml")))
           .build();
         assertThat(parser.isExcluded(Paths.get("/Users/jon/Projects/github/quarkusio/gizmo/pom.xml"),
