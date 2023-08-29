@@ -118,7 +118,7 @@ public class OmniParser implements Parser {
                         !isExcluded(file, rootDir) &&
                         !isGitignored(gitignoreStack.values(), file, rootDir)) {
                         if (!isOverSizeThreshold(attrs.size())) {
-                            for (Parser parser : RESOURCE_PARSERS) {
+                            for (Parser parser : parsers) {
                                 if (parser.accept(file)) {
                                     parseable.add(file);
                                     break;
@@ -148,7 +148,7 @@ public class OmniParser implements Parser {
                                           ExecutionContext ctx) {
         return StreamSupport.stream(sources.spliterator(), parallel).flatMap(input -> {
             Path path = input.getPath();
-            for (Parser parser : RESOURCE_PARSERS) {
+            for (Parser parser : parsers) {
                 if (parser.accept(path)) {
                     return parser.parseInputs(Collections.singletonList(input), relativeTo, ctx);
                 }
@@ -159,7 +159,7 @@ public class OmniParser implements Parser {
 
     @Override
     public boolean accept(Path path) {
-        for (Parser parser : RESOURCE_PARSERS) {
+        for (Parser parser : parsers) {
             if (parser.accept(path)) {
                 return true;
             }
