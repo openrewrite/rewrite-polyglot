@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public class SourceFileStream implements Stream<SourceFile> {
+
     @Delegate
     private final Stream<SourceFile> delegate;
 
@@ -45,6 +46,11 @@ public class SourceFileStream implements Stream<SourceFile> {
         this.delegate = delegate.peek(sf -> peekGroup.accept(group));
         this.group = group;
         this.peekGroup = peekGroup;
+    }
+
+    public SourceFileStream concat(SourceFileStream sourceFileStream) {
+        return new SourceFileStream(Stream.concat(delegate, sourceFileStream),
+                sourceFileStream.size + this.size, group, peekGroup);
     }
 
     public SourceFileStream concat(Stream<SourceFile> sourceFileStream, int size) {
