@@ -81,7 +81,7 @@ public class RemoteProgressBarSender implements ProgressBar {
     private void send(Request.Type type, @Nullable String message) {
         try {
             if (message != null && message.length() + 1 > MAX_MESSAGE_SIZE) {
-                throw new IllegalArgumentException("Message size exceeded maximum length: " + message);
+                message = message.substring(0, MAX_MESSAGE_SIZE - 4) + "...";
             }
             byte[] buf = (type.ordinal() + (message == null ? "" : message)).getBytes();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
