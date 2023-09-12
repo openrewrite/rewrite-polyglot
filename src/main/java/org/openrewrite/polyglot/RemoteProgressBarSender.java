@@ -80,9 +80,9 @@ public class RemoteProgressBarSender implements ProgressBar {
 
     private void send(Request.Type type, @Nullable String message) {
         try {
-            if (message != null && message.length() + 1 > MAX_MESSAGE_SIZE) {
-                throw new IllegalArgumentException("Message size exceeded maximum length: " + message);
-            }
+            // UTF-8 encoding is not guaranteed to be 1 byte per character, might handle that in the future as per:
+            // https://github.com/openrewrite/rewrite-polyglot/pull/17#discussion_r1322841060
+            message = truncateMessage(message, MAX_MESSAGE_SIZE - 1);
             byte[] buf = (type.ordinal() + (message == null ? "" : message)).getBytes();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
             socket.send(packet);
@@ -91,6 +91,13 @@ public class RemoteProgressBarSender implements ProgressBar {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    static @Nullable String truncateMessage(@Nullable String message, int maxLength) {
+        if (message == null || message.length() <= maxLength) {
+            return message;
+        }
+        return "..." + message.substring(Math.max(message.length() - maxLength + 3, 0));
     }
 
     @Value
