@@ -91,7 +91,7 @@ public class RemoteProgressBarSender implements ProgressBar {
         }
     }
 
-    private static String truncateMessage(String message, int maxLength) {
+    private static @Nullable String truncateMessage(@Nullable String message, int maxLength) {
         if (message == null || message.length() <= maxLength) {
             return message;
         }
