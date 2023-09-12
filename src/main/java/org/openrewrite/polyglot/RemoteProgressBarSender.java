@@ -80,9 +80,7 @@ public class RemoteProgressBarSender implements ProgressBar {
 
     private void send(Request.Type type, @Nullable String message) {
         try {
-            if (message != null && message.length() + 1 > MAX_MESSAGE_SIZE) {
-                message = message.substring(0, MAX_MESSAGE_SIZE - 4) + "...";
-            }
+            message = truncateMessage(message, MAX_MESSAGE_SIZE - 1);
             byte[] buf = (type.ordinal() + (message == null ? "" : message)).getBytes();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
             socket.send(packet);
@@ -91,6 +89,13 @@ public class RemoteProgressBarSender implements ProgressBar {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private static String truncateMessage(String message, int maxLength) {
+        if (message == null || message.length() <= maxLength) {
+            return message;
+        }
+        return "..." + message.substring(Math.max(message.length() - maxLength - 3, 0));
     }
 
     @Value
