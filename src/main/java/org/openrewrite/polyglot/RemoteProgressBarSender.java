@@ -91,11 +91,11 @@ public class RemoteProgressBarSender implements ProgressBar {
         }
     }
 
-    private static @Nullable String truncateMessage(@Nullable String message, int maxLength) {
+    static @Nullable String truncateMessage(@Nullable String message, int maxLength) {
         if (message == null || message.length() <= maxLength) {
             return message;
         }
-        return "..." + message.substring(Math.max(message.length() - maxLength - 3, 0));
+        return "..." + message.substring(Math.max(message.length() - maxLength + 3, 0));
     }
 
     @Value
