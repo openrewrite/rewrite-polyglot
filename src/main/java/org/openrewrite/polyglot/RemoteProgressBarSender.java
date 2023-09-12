@@ -80,6 +80,8 @@ public class RemoteProgressBarSender implements ProgressBar {
 
     private void send(Request.Type type, @Nullable String message) {
         try {
+            // UTF-8 encoding is not guaranteed to be 1 byte per character, might handle that in the future as per:
+            // https://github.com/openrewrite/rewrite-polyglot/pull/17#discussion_r1322841060
             message = truncateMessage(message, MAX_MESSAGE_SIZE - 1);
             byte[] buf = (type.ordinal() + (message == null ? "" : message)).getBytes();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
