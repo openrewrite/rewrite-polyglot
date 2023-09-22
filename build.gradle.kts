@@ -22,6 +22,7 @@ dependencies {
 
     implementation(platform("org.openrewrite:rewrite-bom:$latest"))
     implementation("org.openrewrite:rewrite-groovy")
+    implementation("org.openrewrite:rewrite-gradle")
     implementation("org.openrewrite:rewrite-hcl")
     implementation("org.openrewrite:rewrite-json")
     implementation("org.openrewrite:rewrite-maven")

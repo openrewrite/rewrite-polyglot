@@ -21,6 +21,8 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Parser;
 import org.openrewrite.SourceFile;
+import org.openrewrite.gradle.GradleParser;
+import org.openrewrite.groovy.GroovyParser;
 import org.openrewrite.hcl.HclParser;
 import org.openrewrite.internal.lang.Nullable;
 import org.openrewrite.json.JsonParser;
@@ -44,6 +46,7 @@ import java.util.stream.StreamSupport;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 
+@SuppressWarnings("unused")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class OmniParser implements Parser {
     /**
@@ -56,7 +59,9 @@ public class OmniParser implements Parser {
             new YamlParser(),
             new PropertiesParser(),
             new ProtoParser(),
-            HclParser.builder().build()
+            HclParser.builder().build(),
+            GroovyParser.builder().build(),
+            GradleParser.builder().build()
     ));
 
     private static final Collection<String> DEFAULT_IGNORED_DIRECTORIES = asList(
@@ -88,6 +93,7 @@ public class OmniParser implements Parser {
     @Override
     public Stream<SourceFile> parse(Iterable<Path> sourceFiles, @Nullable Path relativeTo, ExecutionContext ctx) {
         int count = 0;
+        //noinspection UnusedAssignment
         for (Path ignored : sourceFiles) {
             count++;
         }
@@ -96,6 +102,9 @@ public class OmniParser implements Parser {
     }
 
     public List<Path> acceptedPaths(Path rootDir) {
+        if(!Files.exists(rootDir)) {
+            return emptyList();
+        }
         List<Path> parseable = new ArrayList<>();
         Map<Path, IgnoreNode> gitignoreStack = new LinkedHashMap<>();
 
@@ -135,8 +144,7 @@ public class OmniParser implements Parser {
                     return FileVisitResult.CONTINUE;
                 }
             });
-        } catch (
-                IOException e) {
+        } catch (IOException e) {
             // cannot happen, since none of the visit methods throw an IOException
             throw new UncheckedIOException(e);
         }
