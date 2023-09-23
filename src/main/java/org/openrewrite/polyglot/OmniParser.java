@@ -102,21 +102,25 @@ public class OmniParser implements Parser {
     }
 
     public List<Path> acceptedPaths(Path rootDir) {
-        if(!Files.exists(rootDir)) {
+        return acceptedPaths(rootDir, rootDir);
+    }
+
+    public List<Path> acceptedPaths(Path rootDir, Path searchDir) {
+        if(!Files.exists(searchDir)) {
             return emptyList();
         }
         List<Path> parseable = new ArrayList<>();
         Map<Path, IgnoreNode> gitignoreStack = new LinkedHashMap<>();
 
         try {
-            Files.walkFileTree(rootDir, new SimpleFileVisitor<Path>() {
+            Files.walkFileTree(searchDir, new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                     loadGitignore(dir).ifPresent(ignoreNode -> gitignoreStack.put(dir, ignoreNode));
                     return isExcluded(dir, rootDir) ||
-                           isIgnoredDirectory(dir, rootDir) ||
+                           isIgnoredDirectory(dir, searchDir) ||
                            excludedDirectories.contains(dir) ||
-                           isGitignored(gitignoreStack.values(), dir, rootDir) ?
+                           isGitignored(gitignoreStack.values(), dir, searchDir) ?
                             FileVisitResult.SKIP_SUBTREE :
                             FileVisitResult.CONTINUE;
                 }
@@ -125,7 +129,7 @@ public class OmniParser implements Parser {
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                     if (!attrs.isOther() && !attrs.isSymbolicLink() &&
                         !isExcluded(file, rootDir) &&
-                        !isGitignored(gitignoreStack.values(), file, rootDir)) {
+                        !isGitignored(gitignoreStack.values(), file, searchDir)) {
                         if (!isOverSizeThreshold(attrs.size())) {
                             for (Parser parser : parsers) {
                                 if (parser.accept(file)) {
