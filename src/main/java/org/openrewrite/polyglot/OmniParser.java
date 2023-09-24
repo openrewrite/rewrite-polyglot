@@ -49,21 +49,6 @@ import static java.util.Collections.emptyList;
 @SuppressWarnings("unused")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class OmniParser implements Parser {
-    /**
-     * Does not include text and quark parsers. We leave it up to the caller to determine
-     * what the division of labor should be between PlainText and the Quark parsers, if any.
-     */
-    public static List<Parser> RESOURCE_PARSERS = new ArrayList<>(asList(
-            new JsonParser(),
-            new XmlParser(),
-            new YamlParser(),
-            new PropertiesParser(),
-            new ProtoParser(),
-            HclParser.builder().build(),
-            GroovyParser.builder().build(),
-            GradleParser.builder().build()
-    ));
-
     private static final Collection<String> DEFAULT_IGNORED_DIRECTORIES = asList(
             "build",
             "target",
@@ -86,6 +71,25 @@ public class OmniParser implements Parser {
     private final List<Parser> parsers;
     private final Consumer<Integer> onParse;
 
+    /**
+     * Does not include text and quark parsers. We leave it up to the caller to determine
+     * what the division of labor should be between PlainText and the Quark parsers, if any.
+     */
+    public static List<Parser> defaultResourceParsers() {
+        // do not assign to static field, or class initialization on OmniParser will
+        // cause these parsers to get built, potentially triggering undesirable side effects
+        return new ArrayList<>(asList(
+                new JsonParser(),
+                new XmlParser(),
+                new YamlParser(),
+                new PropertiesParser(),
+                new ProtoParser(),
+                HclParser.builder().build(),
+                GroovyParser.builder().build(),
+                GradleParser.builder().build()
+        ));
+    }
+
     public Stream<SourceFile> parseAll(Path rootDir) {
         return parse(acceptedPaths(rootDir), rootDir, new InMemoryExecutionContext());
     }
@@ -93,7 +97,6 @@ public class OmniParser implements Parser {
     @Override
     public Stream<SourceFile> parse(Iterable<Path> sourceFiles, @Nullable Path relativeTo, ExecutionContext ctx) {
         int count = 0;
-        //noinspection UnusedAssignment
         for (Path ignored : sourceFiles) {
             count++;
         }
@@ -106,7 +109,7 @@ public class OmniParser implements Parser {
     }
 
     public List<Path> acceptedPaths(Path rootDir, Path searchDir) {
-        if(!Files.exists(searchDir)) {
+        if (!Files.exists(searchDir)) {
             return emptyList();
         }
         List<Path> parseable = new ArrayList<>();
