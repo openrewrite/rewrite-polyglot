@@ -28,7 +28,7 @@ public class RemoteProgressBarSender implements ProgressBar {
     final static int MAX_MESSAGE_SIZE = 256;
 
     private final DatagramSocket socket;
-    private final InetAddress address;
+    private InetAddress address;
     private final int port;
 
     public RemoteProgressBarSender(int port) {
@@ -36,12 +36,21 @@ public class RemoteProgressBarSender implements ProgressBar {
     }
 
     public RemoteProgressBarSender(@Nullable InetAddress address, int port) {
+        String localhost = Files.exists(Paths.get("/.dockerenv")) ?
+                "host.docker.internal" :
+                "localhost";
         try {
-            String localhost = Files.exists(Paths.get("/.dockerenv")) ? "host.docker.internal" : "localhost";
             this.address = address == null ? InetAddress.getByName(localhost) : address;
             this.port = port;
             this.socket = new DatagramSocket();
         } catch (UnknownHostException | SocketException e) {
+            if (localhost.equals("host.docker.internal")) {
+                try {
+                    this.address = InetAddress.getByName("localhost");
+                } catch (UnknownHostException ex) {
+                    throw new UncheckedIOException(ex);
+                }
+            }
             throw new UncheckedIOException(e);
         }
     }
