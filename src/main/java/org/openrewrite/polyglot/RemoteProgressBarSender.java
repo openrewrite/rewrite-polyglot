@@ -27,9 +27,9 @@ import java.nio.file.Paths;
 public class RemoteProgressBarSender implements ProgressBar {
     final static int MAX_MESSAGE_SIZE = 256;
 
-    private final DatagramSocket socket;
+    private DatagramSocket socket;
     private InetAddress address;
-    private final int port;
+    private int port;
 
     public RemoteProgressBarSender(int port) {
         this(null, port);
