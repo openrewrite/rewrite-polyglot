@@ -50,8 +50,9 @@ public class RemoteProgressBarSender implements ProgressBar {
                 } catch (UnknownHostException ex) {
                     throw new UncheckedIOException(ex);
                 }
+            } else {
+                throw new UncheckedIOException(e);
             }
-            throw new UncheckedIOException(e);
         }
     }
 
