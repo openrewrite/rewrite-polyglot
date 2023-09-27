@@ -53,6 +53,9 @@ public class OmniParserTest {
         touch(repo.resolve("localexclude.xml"));
         createSymLink(repo.resolve("symlink.xml").toFile(), "./newfile.xml");
 
+        mkdirs(repo.resolve("build").toFile());
+        touch(repo.resolve("ignored_directory_file.xml"));
+
         writeString(repo.resolve(".gitignore"), "gitignored.xml");
         mkdirs(repo.resolve(".git/info").toFile());
         writeString(repo.resolve(".git/info/exclude"), "localexclude.xml");
@@ -70,7 +73,8 @@ public class OmniParserTest {
           "pom.xml",
           "gitignored.xml",
           "localexclude.xml",
-          "symlink.xml"
+          "symlink.xml",
+          "build/ignored_directory_file.xml"
         );
     }
 

@@ -130,27 +130,29 @@ public class OmniParser implements Parser {
                 WorkingTreeIterator tree = walk.getTree(WorkingTreeIterator.class);
                 if (!tree.isEntryIgnored()) {
                     Path path = rootDir.resolve(tree.getEntryPathString());
-                    // Check if directory
-                    if (tree.getEntryFileMode().equals(FileMode.TREE) &&
-                        !isExcluded(path, rootDir) &&
-                        !isIgnoredDirectory(path, searchDir) &&
-                        !excludedDirectories.contains(path)
-                    ) {
-                        walk.enterSubtree();
-                        continue;
-                    }
-
-                    if (!tree.getEntryFileMode().equals(FileMode.SYMLINK) &&
-                        !isOverSizeThreshold(tree.getEntryContentLength()) &&
-                        !isExcluded(path, rootDir)
-                    ) {
-                        for (Parser parser : parsers) {
-                            if (parser.accept(path)) {
-                                parseable.add(path);
-                                break;
+                    if (tree.getEntryFileMode().equals(FileMode.TREE)) {
+                        // It's a directory
+                        if (!isExcluded(path, rootDir) &&
+                            !isIgnoredDirectory(path, searchDir) &&
+                            !excludedDirectories.contains(path)
+                        ) {
+                            walk.enterSubtree();
+                        }
+                    } else {
+                        // It's a file
+                        if (!tree.getEntryFileMode().equals(FileMode.SYMLINK) &&
+                            !isOverSizeThreshold(tree.getEntryContentLength()) &&
+                            !isExcluded(path, rootDir)
+                        ) {
+                            for (Parser parser : parsers) {
+                                if (parser.accept(path)) {
+                                    parseable.add(path);
+                                    break;
+                                }
                             }
                         }
                     }
+
                 }
             }
         } catch (IOException e) {
