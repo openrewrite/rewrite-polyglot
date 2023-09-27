@@ -28,16 +28,24 @@ import org.openrewrite.internal.lang.Nullable;
 import org.openrewrite.json.JsonParser;
 import org.openrewrite.properties.PropertiesParser;
 import org.openrewrite.protobuf.ProtoParser;
-import org.openrewrite.shaded.jgit.ignore.IgnoreNode;
+import org.openrewrite.shaded.jgit.api.Git;
+import org.openrewrite.shaded.jgit.lib.FileMode;
+import org.openrewrite.shaded.jgit.treewalk.FileTreeIterator;
+import org.openrewrite.shaded.jgit.treewalk.TreeWalk;
+import org.openrewrite.shaded.jgit.treewalk.WorkingTreeIterator;
 import org.openrewrite.xml.XmlParser;
 import org.openrewrite.yaml.YamlParser;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -113,46 +121,39 @@ public class OmniParser implements Parser {
             return emptyList();
         }
         List<Path> parseable = new ArrayList<>();
-        Map<Path, IgnoreNode> gitignoreStack = new LinkedHashMap<>();
 
-        try {
-            Files.walkFileTree(searchDir, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                    loadGitignore(dir).ifPresent(ignoreNode -> gitignoreStack.put(dir, ignoreNode));
-                    return isExcluded(dir, rootDir) ||
-                           isIgnoredDirectory(dir, searchDir) ||
-                           excludedDirectories.contains(dir) ||
-                           isGitignored(gitignoreStack.values(), dir, searchDir) ?
-                            FileVisitResult.SKIP_SUBTREE :
-                            FileVisitResult.CONTINUE;
-                }
+        try (Git git = Git.open(rootDir.toFile());
+             TreeWalk walk = new TreeWalk(git.getRepository())) {
+            walk.addTree(new FileTreeIterator(git.getRepository()));
 
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    if (!attrs.isOther() && !attrs.isSymbolicLink() &&
-                        !isExcluded(file, rootDir) &&
-                        !isGitignored(gitignoreStack.values(), file, searchDir)) {
-                        if (!isOverSizeThreshold(attrs.size())) {
-                            for (Parser parser : parsers) {
-                                if (parser.accept(file)) {
-                                    parseable.add(file);
-                                    break;
-                                }
+            while (walk.next()) {
+                WorkingTreeIterator tree = walk.getTree(WorkingTreeIterator.class);
+                if (!tree.isEntryIgnored()) {
+                    Path path = rootDir.resolve(tree.getEntryPathString());
+                    // Check if directory
+                    if (tree.getEntryFileMode().equals(FileMode.TREE) &&
+                        !isExcluded(path, rootDir) &&
+                        !isIgnoredDirectory(path, searchDir) &&
+                        !excludedDirectories.contains(path)
+                    ) {
+                        walk.enterSubtree();
+                        continue;
+                    }
+
+                    if (!tree.getEntryFileMode().equals(FileMode.SYMLINK) &&
+                        !isOverSizeThreshold(tree.getEntryContentLength()) &&
+                        !isExcluded(path, rootDir)
+                    ) {
+                        for (Parser parser : parsers) {
+                            if (parser.accept(path)) {
+                                parseable.add(path);
+                                break;
                             }
                         }
                     }
-                    return FileVisitResult.CONTINUE;
                 }
-
-                @Override
-                public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
-                    gitignoreStack.remove(dir);
-                    return FileVisitResult.CONTINUE;
-                }
-            });
+            }
         } catch (IOException e) {
-            // cannot happen, since none of the visit methods throw an IOException
             throw new UncheckedIOException(e);
         }
         return parseable;
@@ -208,31 +209,6 @@ public class OmniParser implements Parser {
         for (Path pathSegment : rootDir.relativize(path)) {
             if (DEFAULT_IGNORED_DIRECTORIES.contains(pathSegment.toString())) {
                 return true;
-            }
-        }
-        return false;
-    }
-
-    private Optional<IgnoreNode> loadGitignore(Path dir) {
-        Path gitignore = dir.resolve(".gitignore");
-        if (!Files.exists(gitignore)) {
-            return Optional.empty();
-        }
-        IgnoreNode ignoreNode = new IgnoreNode();
-        try (InputStream is = Files.newInputStream(gitignore)) {
-            ignoreNode.parse(is);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Error reading '" + gitignore + "'", e);
-        }
-        return Optional.of(ignoreNode);
-    }
-
-    private boolean isGitignored(Collection<IgnoreNode> gitignoreStack, Path path, Path rootDir) {
-        // We are retrieving the elements in insertion order thanks to Deque
-        for (IgnoreNode ignoreNode : gitignoreStack) {
-            Boolean result = ignoreNode.checkIgnored(rootDir.relativize(path).toFile().getPath(), path.toFile().isDirectory());
-            if (result != null) {
-                return result;
             }
         }
         return false;

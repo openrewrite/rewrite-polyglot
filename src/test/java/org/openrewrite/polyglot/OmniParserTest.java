@@ -16,11 +16,17 @@
 package org.openrewrite.polyglot;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.openrewrite.shaded.jgit.api.Git;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+import static java.nio.file.Files.writeString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.openrewrite.shaded.jgit.util.FileUtils.*;
 
 public class OmniParserTest {
 
@@ -31,5 +37,49 @@ public class OmniParserTest {
           .build();
         assertThat(parser.isExcluded(Paths.get("/Users/jon/Projects/github/quarkusio/gizmo/pom.xml"),
           Paths.get("/Users/jon/Projects/github/quarkusio/gizmo"))).isTrue();
+    }
+
+    @Test
+    void acceptedPaths(@TempDir Path repo) throws IOException {
+        initGit(repo);
+
+        touch(repo.resolve("file.xml"));
+        mkdirs(repo.resolve("folder").toFile());
+        touch(repo.resolve("folder/fileinfolder.xml"));
+        touch(repo.resolve("newfile.xml"));
+
+        touch(repo.resolve("pom.xml"));
+        touch(repo.resolve("gitignored.xml"));
+        touch(repo.resolve("localexclude.xml"));
+        createSymLink(repo.resolve("symlink.xml").toFile(), "./newfile.xml");
+
+        writeString(repo.resolve(".gitignore"), "gitignored.xml");
+        mkdirs(repo.resolve(".git/info").toFile());
+        writeString(repo.resolve(".git/info/exclude"), "localexclude.xml");
+
+        OmniParser parser = OmniParser.builder(OmniParser.defaultResourceParsers())
+          .exclusions(List.of(Paths.get("pom.xml")))
+          .build();
+
+        List<Path> paths = parser.acceptedPaths(repo);
+        assertThat(paths.stream().map(p -> repo.relativize(p).toString())).contains(
+          "file.xml",
+          "newfile.xml",
+          "folder/fileinfolder.xml"
+        ).doesNotContain(
+          "pom.xml",
+          "gitignored.xml",
+          "localexclude.xml",
+          "symlink.xml"
+        );
+    }
+
+    void initGit(Path repositoryPath) {
+        try (Git git = Git.init().setDirectory(repositoryPath.toFile()).call()) {
+            git.add().addFilepattern(".").call();
+            git.commit().setSign(false).setMessage("init commit").call();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
