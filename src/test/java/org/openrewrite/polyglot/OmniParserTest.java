@@ -18,15 +18,15 @@ package org.openrewrite.polyglot;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.openrewrite.shaded.jgit.api.Git;
-import org.openrewrite.shaded.jgit.util.FileUtils;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+import static java.nio.file.Files.writeString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.openrewrite.shaded.jgit.util.FileUtils.*;
 
 public class OmniParserTest {
 
@@ -41,36 +41,37 @@ public class OmniParserTest {
 
     @Test
     void acceptedPaths(@TempDir Path repo) throws IOException {
-        // Prepare repo
-        FileUtils.touch(repo.resolve("pom.xml"));
-        FileUtils.touch(repo.resolve("gitignored.xml"));
-        FileUtils.touch(repo.resolve("localexclude.xml"));
-        Files.writeString(repo.resolve(".gitignore"), "gitignored.xml");
-        FileUtils.touch(repo.resolve("file.xml"));
-        FileUtils.mkdirs(repo.resolve("folder").toFile());
-        FileUtils.touch(repo.resolve("folder/fileinfolder.xml"));
         initGit(repo);
-        FileUtils.mkdirs(repo.resolve(".git/info").toFile());
-        Files.writeString(repo.resolve(".git/info/exclude"), "localexclude.xml");
-        FileUtils.touch(repo.resolve("newfile.xml"));
-        FileUtils.createSymLink(repo.resolve("symlink.xml").toFile(), "./newfile.xml");
-        // Repo prepared
+
+        touch(repo.resolve("file.xml"));
+        mkdirs(repo.resolve("folder").toFile());
+        touch(repo.resolve("folder/fileinfolder.xml"));
+        touch(repo.resolve("newfile.xml"));
+
+        touch(repo.resolve("pom.xml"));
+        touch(repo.resolve("gitignored.xml"));
+        touch(repo.resolve("localexclude.xml"));
+        createSymLink(repo.resolve("symlink.xml").toFile(), "./newfile.xml");
+
+        writeString(repo.resolve(".gitignore"), "gitignored.xml");
+        mkdirs(repo.resolve(".git/info").toFile());
+        writeString(repo.resolve(".git/info/exclude"), "localexclude.xml");
 
         OmniParser parser = OmniParser.builder(OmniParser.defaultResourceParsers())
           .exclusions(List.of(Paths.get("pom.xml")))
           .build();
-        List<Path> paths = parser.acceptedPaths(repo);
-        assertThat(paths).contains(
-          repo.resolve("file.xml"),
-          repo.resolve("newfile.xml"),
-          repo.resolve("folder/fileinfolder.xml")
-        ).doesNotContain(
-          repo.resolve("pom.xml"),
-          repo.resolve("gitignored.xml"),
-          repo.resolve("localexclude.xml"),
-          repo.resolve("symlink.xml")
-        );
 
+        List<Path> paths = parser.acceptedPaths(repo);
+        assertThat(paths.stream().map(p -> repo.relativize(p).toString())).contains(
+          "file.xml",
+          "newfile.xml",
+          "folder/fileinfolder.xml"
+        ).doesNotContain(
+          "pom.xml",
+          "gitignored.xml",
+          "localexclude.xml",
+          "symlink.xml"
+        );
     }
 
     void initGit(Path repositoryPath) {
@@ -81,5 +82,4 @@ public class OmniParserTest {
             throw new RuntimeException(e);
         }
     }
-
 }
