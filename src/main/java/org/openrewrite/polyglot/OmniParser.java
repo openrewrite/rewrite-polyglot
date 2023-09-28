@@ -30,18 +30,18 @@ import org.openrewrite.properties.PropertiesParser;
 import org.openrewrite.protobuf.ProtoParser;
 import org.openrewrite.shaded.jgit.api.Git;
 import org.openrewrite.shaded.jgit.lib.FileMode;
+import org.openrewrite.shaded.jgit.lib.Repository;
 import org.openrewrite.shaded.jgit.treewalk.FileTreeIterator;
 import org.openrewrite.shaded.jgit.treewalk.TreeWalk;
 import org.openrewrite.shaded.jgit.treewalk.WorkingTreeIterator;
+import org.openrewrite.shaded.jgit.treewalk.filter.PathFilterGroup;
 import org.openrewrite.xml.XmlParser;
 import org.openrewrite.yaml.YamlParser;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -120,45 +120,80 @@ public class OmniParser implements Parser {
         if (!Files.exists(searchDir)) {
             return emptyList();
         }
-        List<Path> parseable = new ArrayList<>();
 
-        try (Git git = Git.open(rootDir.toFile());
-             TreeWalk walk = new TreeWalk(git.getRepository())) {
-            walk.addTree(new FileTreeIterator(git.getRepository()));
+        List<Path> accepted = new ArrayList<>();
+        try {
+            Repository repository = getRepository(rootDir);
+            Files.walkFileTree(searchDir, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    return isExcluded(dir, rootDir) ||
+                           isIgnoredDirectory(dir, searchDir) ||
+                           excludedDirectories.contains(dir) ||
+                           isGitIgnored(repository, dir, rootDir) ?
+                            FileVisitResult.SKIP_SUBTREE :
+                            FileVisitResult.CONTINUE;
+                }
 
-            while (walk.next()) {
-                WorkingTreeIterator tree = walk.getTree(WorkingTreeIterator.class);
-                if (!tree.isEntryIgnored()) {
-                    Path path = rootDir.resolve(tree.getEntryPathString());
-                    if (tree.getEntryFileMode().equals(FileMode.TREE)) {
-                        // It's a directory
-                        if (!isExcluded(path, rootDir) &&
-                            !isIgnoredDirectory(path, searchDir) &&
-                            !excludedDirectories.contains(path)
-                        ) {
-                            walk.enterSubtree();
-                        }
-                    } else {
-                        // It's a file
-                        if (!tree.getEntryFileMode().equals(FileMode.SYMLINK) &&
-                            !isOverSizeThreshold(tree.getEntryContentLength()) &&
-                            !isExcluded(path, rootDir)
-                        ) {
-                            for (Parser parser : parsers) {
-                                if (parser.accept(path)) {
-                                    parseable.add(path);
-                                    break;
-                                }
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    if (!attrs.isOther() && !attrs.isSymbolicLink() &&
+                        !isExcluded(file, rootDir) &&
+                        !isOverSizeThreshold(attrs.size()) &&
+                        !isGitIgnored(repository, file, rootDir)
+                    ) {
+                        for (Parser parser : parsers) {
+                            if (parser.accept(file)) {
+                                accepted.add(file);
+                                break;
                             }
                         }
                     }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
 
+        return accepted;
+    }
+
+    private @Nullable Repository getRepository(Path rootDir) {
+        try (Git git = Git.open(rootDir.toFile())) {
+            return git.getRepository();
+        } catch (IOException e) {
+            // no git
+            return null;
+        }
+    }
+
+    private boolean isGitIgnored(@Nullable Repository repo, Path path, Path rootDir) {
+        if (repo == null) {
+            return false;
+        }
+
+        String repoRelativePath = rootDir.relativize(path).toString();
+        if (repoRelativePath.isEmpty()) {
+            return false;
+        }
+
+        try (TreeWalk walk = new TreeWalk(repo)) {
+            walk.addTree(new FileTreeIterator(repo));
+            walk.setFilter(PathFilterGroup.createFromStrings(repoRelativePath));
+            while (walk.next()) {
+                WorkingTreeIterator workingTreeIterator = walk.getTree(0, WorkingTreeIterator.class);
+                if (walk.getPathString().equals(repoRelativePath)) {
+                    return workingTreeIterator.isEntryIgnored();
+                }
+                if (workingTreeIterator.getEntryFileMode().equals(FileMode.TREE)) {
+                    walk.enterSubtree();
                 }
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return parseable;
+        return false;
     }
 
     @Override

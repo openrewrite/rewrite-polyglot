@@ -17,6 +17,8 @@ package org.openrewrite.polyglot;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.openrewrite.shaded.jgit.api.Git;
 
 import java.io.IOException;
@@ -39,26 +41,32 @@ public class OmniParserTest {
           Paths.get("/Users/jon/Projects/github/quarkusio/gizmo"))).isTrue();
     }
 
-    @Test
-    void acceptedPaths(@TempDir Path repo) throws IOException {
-        initGit(repo);
+    @TempDir
+    Path repo;
 
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void acceptedPaths(boolean gitRepo) throws IOException {
         touch(repo.resolve("file.xml"));
         mkdirs(repo.resolve("folder").toFile());
         touch(repo.resolve("folder/fileinfolder.xml"));
         touch(repo.resolve("newfile.xml"));
 
         touch(repo.resolve("pom.xml"));
-        touch(repo.resolve("gitignored.xml"));
-        touch(repo.resolve("localexclude.xml"));
         createSymLink(repo.resolve("symlink.xml").toFile(), "./newfile.xml");
 
         mkdirs(repo.resolve("build").toFile());
         touch(repo.resolve("ignored_directory_file.xml"));
 
-        writeString(repo.resolve(".gitignore"), "gitignored.xml");
-        mkdirs(repo.resolve(".git/info").toFile());
-        writeString(repo.resolve(".git/info/exclude"), "localexclude.xml");
+        if (gitRepo) {
+            initGit(repo);
+
+            touch(repo.resolve("gitignored.xml"));
+            touch(repo.resolve("localexclude.xml"));
+            writeString(repo.resolve(".gitignore"), "gitignored.xml");
+            mkdirs(repo.resolve(".git/info").toFile());
+            writeString(repo.resolve(".git/info/exclude"), "localexclude.xml");
+        }
 
         OmniParser parser = OmniParser.builder(OmniParser.defaultResourceParsers())
           .exclusions(List.of(Paths.get("pom.xml")))
@@ -71,10 +79,10 @@ public class OmniParserTest {
           "folder/fileinfolder.xml"
         ).doesNotContain(
           "pom.xml",
-          "gitignored.xml",
-          "localexclude.xml",
           "symlink.xml",
-          "build/ignored_directory_file.xml"
+          "build/ignored_directory_file.xml",
+          "gitignored.xml",
+          "localexclude.xml"
         );
     }
 
