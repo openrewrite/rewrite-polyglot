@@ -105,6 +105,7 @@ public class OmniParser implements Parser {
     @Override
     public Stream<SourceFile> parse(Iterable<Path> sourceFiles, @Nullable Path relativeTo, ExecutionContext ctx) {
         int count = 0;
+        //noinspection UnusedAssignment
         for (Path ignored : sourceFiles) {
             count++;
         }
@@ -230,8 +231,13 @@ public class OmniParser implements Parser {
     }
 
     boolean isExcluded(Path path, Path rootDir) {
-        Path relativePath = rootDir.relativize(path);
-        if (exclusions.contains(relativePath)) {
+        Path relativePath;
+        if(path.isAbsolute()) {
+            relativePath = rootDir.relativize(path);
+        } else {
+            relativePath = path;
+        }
+        if (exclusions.contains(path) || exclusions.contains(relativePath)) {
             return true;
         }
         for (PathMatcher excluded : exclusionMatchers) {
