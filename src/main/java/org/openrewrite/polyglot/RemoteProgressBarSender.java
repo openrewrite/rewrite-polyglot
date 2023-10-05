@@ -40,9 +40,9 @@ public class RemoteProgressBarSender implements ProgressBar {
                 "host.docker.internal" :
                 "localhost";
         try {
-            this.address = address == null ? InetAddress.getByName(localhost) : address;
-            this.port = port;
             this.socket = new DatagramSocket();
+            this.port = port;
+            this.address = address == null ? InetAddress.getByName(localhost) : address;
         } catch (UnknownHostException | SocketException e) {
             if (localhost.equals("host.docker.internal")) {
                 try {
