@@ -16,31 +16,29 @@
 package org.openrewrite.polyglot;
 
 import org.openrewrite.internal.lang.Nullable;
-import org.openrewrite.polyglot.RemoteProgressBarSender.Request.Type;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.net.SocketTimeoutException;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static java.util.Objects.requireNonNull;
-import static org.openrewrite.polyglot.RemoteProgressBarSender.MAX_MESSAGE_SIZE;
 
 public class RemoteProgressBarReceiver implements ProgressBar {
     private static final ExecutorService PROGRESS_RECEIVER_POOL = Executors.newCachedThreadPool();
 
     private final ProgressBar delegate;
     private final DatagramSocket socket;
+    private volatile boolean closed = false;
 
     public RemoteProgressBarReceiver(ProgressBar delegate) {
-        this.delegate = delegate;
         try {
+            this.delegate = delegate;
             this.socket = new DatagramSocket();
             PROGRESS_RECEIVER_POOL.submit(this::receive);
         } catch (SocketException e) {
@@ -53,51 +51,39 @@ public class RemoteProgressBarReceiver implements ProgressBar {
     }
 
     public void receive() {
+        Map<UUID, RemoteProgressMessage> incompleteMessages = new LinkedHashMap<UUID, RemoteProgressMessage>() {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<UUID, RemoteProgressMessage> eldest) {
+                return size() > 1000;
+            }
+        };
+
         try {
-            for (; ; ) {
-                byte[] buf = new byte[MAX_MESSAGE_SIZE]; // no message should be longer than a terminal line length
-                DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                try {
-                    socket.receive(packet);
-                } catch (SocketTimeoutException ignored) {
-                    break;
+            while (!closed) {
+                RemoteProgressMessage message = RemoteProgressMessage.receive(socket, incompleteMessages);
+                if (message == null) {
+                    continue;
                 }
 
-                Type type = null;
-                for (Type t : Type.values()) {
-                    if (t.ordinal() == buf[0] - '0') {
-                        type = t;
-                        break;
-                    }
-                }
-
-                if (type == null) {
-                    return;
-                }
-
-                String message = null;
-                if (packet.getLength() > 1) {
-                    message = new String(Arrays.copyOfRange(buf, 1, packet.getLength()),
-                            StandardCharsets.UTF_8);
-                }
-
-                switch (type) {
+                switch (message.getType()) {
                     case IntermediateResult:
-                        delegate.intermediateResult(message);
+                        delegate.intermediateResult(message.getMessage());
                         break;
                     case Step:
                         delegate.step();
                         break;
                     case SetExtraMessage:
-                        delegate.setExtraMessage(requireNonNull(message));
+                        delegate.setExtraMessage(requireNonNull(message.getMessage()));
                         break;
                     case SetMax:
-                        delegate.setMax(Integer.parseInt(requireNonNull(message)));
+                        delegate.setMax(Integer.parseInt(requireNonNull(message.getMessage())));
                         break;
                 }
             }
         } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            if (!closed) {
+                throw new UncheckedIOException(e);
+            }
         }
     }
 
@@ -128,6 +114,7 @@ public class RemoteProgressBarReceiver implements ProgressBar {
 
     @Override
     public void close() {
+        closed = true;
         socket.close();
     }
 }

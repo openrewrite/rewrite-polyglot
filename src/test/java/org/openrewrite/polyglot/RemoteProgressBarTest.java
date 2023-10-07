@@ -16,14 +16,10 @@
 package org.openrewrite.polyglot;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.openrewrite.internal.lang.Nullable;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -66,45 +62,15 @@ public class RemoteProgressBarTest {
                   latch.countDown();
                   return this;
               }
-          };
-
-          RemoteProgressBarReceiver receiver = new RemoteProgressBarReceiver(progressBar)) {
-            try (ProgressBar sender = new RemoteProgressBarSender(receiver.getPort())) {
+          }) {
+            try (RemoteProgressBarReceiver receiver = new RemoteProgressBarReceiver(progressBar);
+                 ProgressBar sender = new RemoteProgressBarSender(receiver.getPort())) {
                 sender.setMax(100);
                 sender.step();
                 sender.setExtraMessage("extra");
                 sender.intermediateResult("intermediate");
+                assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
             }
-
-            assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
         }
     }
-
-    @ParameterizedTest
-    @MethodSource("longStrings")
-    void truncate(String input, String output) {
-        int maxLength = 255;
-        String actual = RemoteProgressBarSender.truncateMessage(input, maxLength);
-        assertThat(actual).isEqualTo(output);
-        if (maxLength <= input.length()) {
-            assertThat(actual).hasSize(maxLength);
-        } else {
-            assertThat(actual).hasSize(input.length());
-        }
-    }
-
-    private static Stream<Arguments> longStrings() {
-        String twohunderdfifty = "1234567890".repeat(25);
-        return Stream.of(
-          Arguments.of(twohunderdfifty + "123", twohunderdfifty + "123"),
-          Arguments.of(twohunderdfifty + "1234", twohunderdfifty + "1234"),
-          Arguments.of(twohunderdfifty + "12345", twohunderdfifty + "12345"),
-          Arguments.of(twohunderdfifty + "123456", "..." + twohunderdfifty.substring(4) + "123456"),
-          Arguments.of(twohunderdfifty + "1234567", "..." + twohunderdfifty.substring(5) + "1234567"),
-          Arguments.of(twohunderdfifty + "12345678", "..." + twohunderdfifty.substring(6) + "12345678"),
-          Arguments.of(twohunderdfifty + "123456789", "..." + twohunderdfifty.substring(7) + "123456789"),
-          Arguments.of(twohunderdfifty + "1234567890", "..." + twohunderdfifty.substring(8) + "1234567890")
-        );
-    }
-
 }
