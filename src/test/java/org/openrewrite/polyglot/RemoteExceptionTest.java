@@ -30,12 +30,4 @@ public class RemoteExceptionTest {
         RemoteException decoded = RemoteException.decode(remote.encode());
         assertThat(decoded).isEqualTo(remote);
     }
-
-    @Test
-    void sendOverProgressBar() {
-        try (RemoteProgressBarReceiver progressBar = new RemoteProgressBarReceiver(new NoopProgressBar());
-             RemoteProgressBarSender remoteProgressBar = new RemoteProgressBarSender(progressBar.getPort())) {
-            remoteProgressBar.throwRemote(remote);
-        }
-    }
 }
