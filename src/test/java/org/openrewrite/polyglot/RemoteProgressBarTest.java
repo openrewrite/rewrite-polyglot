@@ -85,6 +85,9 @@ public class RemoteProgressBarTest {
                 new Thread(() -> {
                     try (RemoteProgressBarSender sender = new RemoteProgressBarSender(receiver.getPort())) {
                         sender.throwRemote(RemoteException.builder("boom").build());
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
                     }
                     latch.countDown();
                 }).start();
