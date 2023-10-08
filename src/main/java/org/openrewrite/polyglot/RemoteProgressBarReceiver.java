@@ -66,6 +66,11 @@ public class RemoteProgressBarReceiver implements ProgressBar {
                 }
 
                 switch (message.getType()) {
+                    case Exception:
+                        if (message.getMessage() != null) {
+                            throw RemoteException.decode(message.getMessage());
+                        }
+                        break;
                     case IntermediateResult:
                         delegate.intermediateResult(message.getMessage());
                         break;
