@@ -24,8 +24,10 @@ import java.net.SocketException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static java.util.Objects.requireNonNull;
 
@@ -35,12 +37,13 @@ public class RemoteProgressBarReceiver implements ProgressBar {
     private final ProgressBar delegate;
     private final DatagramSocket socket;
     private volatile boolean closed = false;
+    private final Future<Integer> receiver;
 
     public RemoteProgressBarReceiver(ProgressBar delegate) {
         try {
             this.delegate = delegate;
             this.socket = new DatagramSocket();
-            PROGRESS_RECEIVER_POOL.submit(this::receive);
+            this.receiver = PROGRESS_RECEIVER_POOL.submit(this::receive);
         } catch (SocketException e) {
             throw new UncheckedIOException(e);
         }
@@ -50,21 +53,19 @@ public class RemoteProgressBarReceiver implements ProgressBar {
         return socket.getLocalPort();
     }
 
-    public void receive() {
+    public int receive() {
         Map<UUID, RemoteProgressMessage> incompleteMessages = new LinkedHashMap<UUID, RemoteProgressMessage>() {
             @Override
             protected boolean removeEldestEntry(Map.Entry<UUID, RemoteProgressMessage> eldest) {
                 return size() > 1000;
             }
         };
-
         try {
             while (!closed) {
                 RemoteProgressMessage message = RemoteProgressMessage.receive(socket, incompleteMessages);
                 if (message == null) {
                     continue;
                 }
-
                 switch (message.getType()) {
                     case Exception:
                         if (message.getMessage() != null) {
@@ -90,6 +91,7 @@ public class RemoteProgressBarReceiver implements ProgressBar {
                 throw new UncheckedIOException(e);
             }
         }
+        return 0;
     }
 
     @Override
@@ -121,5 +123,12 @@ public class RemoteProgressBarReceiver implements ProgressBar {
     public void close() {
         closed = true;
         socket.close();
+        try {
+            receiver.get();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            throw (RuntimeException) e.getCause();
+        }
     }
 }

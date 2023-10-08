@@ -22,6 +22,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class RemoteProgressBarTest {
 
@@ -72,5 +73,24 @@ public class RemoteProgressBarTest {
                 assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
             }
         }
+    }
+
+    @Test
+    void remoteException() {
+        assertThatThrownBy(() -> {
+            try (ProgressBar progressBar = new NoopProgressBar();
+                 RemoteProgressBarReceiver receiver = new RemoteProgressBarReceiver(progressBar)) {
+
+                CountDownLatch latch = new CountDownLatch(1);
+                new Thread(() -> {
+                    try (RemoteProgressBarSender sender = new RemoteProgressBarSender(receiver.getPort())) {
+                        sender.throwRemote(RemoteException.builder("boom").build());
+                    }
+                    latch.countDown();
+                }).start();
+
+                assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
+            }
+        }).isInstanceOf(RemoteException.class);
     }
 }
