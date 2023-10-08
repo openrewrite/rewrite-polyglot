@@ -15,6 +15,7 @@
  */
 package org.openrewrite.polyglot;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.openrewrite.internal.lang.Nullable;
 
@@ -28,6 +29,7 @@ import static java.util.stream.Collectors.joining;
  * A serialized exception DTO that contains enough information about an exception caused by a
  * remote process to render a meaningful message, list of suggestions, and optionally a stack trace.
  */
+@Getter
 public class RemoteException extends RuntimeException {
     @Nullable
     private final String sanitizedStackTrace;
