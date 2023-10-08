@@ -16,7 +16,6 @@
 package org.openrewrite.polyglot;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.openrewrite.internal.lang.Nullable;
 
 import java.util.*;
@@ -42,17 +41,24 @@ public class RemoteException extends RuntimeException {
         this.fixSuggestions = fixSuggestions;
     }
 
-    public static Builder builder(String message) {
-        return new Builder(message);
+    public static Builder builder(String message, String... stackTracePrefixFilter) {
+        return new Builder(message, stackTracePrefixFilter);
     }
 
-    @RequiredArgsConstructor
     public static class Builder {
         private final String message;
         private final List<String> fixSuggestions = new ArrayList<>();
-
-        @Nullable
         private String sanitizedStackTrace;
+
+        public Builder(String message, String... stackTracePrefixFilter) {
+            this.message = message;
+            StringJoiner sanitized = new StringJoiner("\n");
+            StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+            StackTraceElement[] shortenedStackTrace = new StackTraceElement[stackTrace.length - 3];
+            System.arraycopy(stackTrace, 3, shortenedStackTrace, 0, stackTrace.length - 3);
+            sanitizeStackElements(sanitized, shortenedStackTrace, stackTracePrefixFilter);
+            this.sanitizedStackTrace = sanitized.toString();
+        }
 
         public Builder cause(Throwable t, String... stackTracePrefixFilter) {
             this.sanitizedStackTrace = sanitizeStackTrace(t, stackTracePrefixFilter);
@@ -76,26 +82,30 @@ public class RemoteException extends RuntimeException {
         for (Throwable tt = t; tt != null; tt = tt.getCause(), causeDepth++) {
             sanitized.add((causeDepth == 0 ? "" : "Caused by ") +
                           tt.getClass().getName() + ": " + tt.getLocalizedMessage());
-            int i = 0;
-            for (StackTraceElement stackTraceElement : tt.getStackTrace()) {
-                String stackTraceClass = stackTraceElement.getClassName();
-                if (stackTraceClass.startsWith("java.util.stream") ||
-                    stackTraceClass.startsWith("java.net.Inet")) {
-                    break;
-                }
-                for (String filter : stackTracePrefixFilter) {
-                    if (stackTraceClass.startsWith(filter)) {
-                        break;
-                    }
-                }
-                if (i++ >= 8) {
-                    sanitized.add("  ...");
-                    break;
-                }
-                sanitized.add("  " + stackTraceElement);
-            }
+            sanitizeStackElements(sanitized, tt.getStackTrace(), stackTracePrefixFilter);
         }
         return sanitized.toString();
+    }
+
+    private static void sanitizeStackElements(StringJoiner sanitized, StackTraceElement[] stackTraceElements, String[] stackTracePrefixFilter) {
+        int i = 0;
+        for (StackTraceElement stackTraceElement : stackTraceElements) {
+            String stackTraceClass = stackTraceElement.getClassName();
+            if (stackTraceClass.startsWith("java.util.stream") ||
+                stackTraceClass.startsWith("java.net.Inet")) {
+                break;
+            }
+            for (String filter : stackTracePrefixFilter) {
+                if (stackTraceClass.startsWith(filter)) {
+                    break;
+                }
+            }
+            if (i++ >= 8) {
+                sanitized.add("  ...");
+                break;
+            }
+            sanitized.add("  " + stackTraceElement);
+        }
     }
 
     public String encode() {
