@@ -33,12 +33,12 @@ public class RemoteException extends RuntimeException {
     @Nullable
     private final String sanitizedStackTrace;
 
-    private final String[] fixSuggestions;
+    private final List<String> fixSuggestions;
 
     RemoteException(String message, @Nullable String sanitizedStackTrace, String[] fixSuggestions) {
         super(message);
         this.sanitizedStackTrace = sanitizedStackTrace;
-        this.fixSuggestions = fixSuggestions;
+        this.fixSuggestions = new ArrayList<>(Arrays.asList(fixSuggestions));
     }
 
     public static Builder builder(String message, String... stackTracePrefixFilter) {
@@ -112,7 +112,7 @@ public class RemoteException extends RuntimeException {
         Base64.Encoder base64 = Base64.getEncoder();
         return base64.encodeToString(getMessage().getBytes(UTF_8)) + "\n" +
                (sanitizedStackTrace == null ? "null" : base64.encodeToString(sanitizedStackTrace.getBytes(UTF_8))) + "\n" +
-               (fixSuggestions.length == 0 ? "null" : stream(fixSuggestions).map(s -> base64.encodeToString(s.getBytes(UTF_8))).collect(joining(",")));
+               (fixSuggestions.isEmpty() ? "null" : fixSuggestions.stream().map(s -> base64.encodeToString(s.getBytes(UTF_8))).collect(joining(",")));
     }
 
     public static RemoteException decode(String encoded) {
@@ -130,13 +130,13 @@ public class RemoteException extends RuntimeException {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         RemoteException that = (RemoteException) o;
-        return Objects.equals(sanitizedStackTrace, that.sanitizedStackTrace) && Arrays.equals(fixSuggestions, that.fixSuggestions);
+        return Objects.equals(sanitizedStackTrace, that.sanitizedStackTrace) && Objects.equals(fixSuggestions, that.fixSuggestions);
     }
 
     @Override
     public int hashCode() {
         int result = Objects.hash(sanitizedStackTrace);
-        result = 31 * result + Arrays.hashCode(fixSuggestions);
+        result = 31 * result + Objects.hashCode(fixSuggestions);
         return result;
     }
 }
