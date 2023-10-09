@@ -24,10 +24,9 @@ import java.net.SocketException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
 
@@ -37,13 +36,13 @@ public class RemoteProgressBarReceiver implements ProgressBar {
     private final ProgressBar delegate;
     private final DatagramSocket socket;
     private volatile boolean closed = false;
-    private final Future<Integer> receiver;
+    private final AtomicReference<String> thrown = new AtomicReference<>();
 
     public RemoteProgressBarReceiver(ProgressBar delegate) {
         try {
             this.delegate = delegate;
             this.socket = new DatagramSocket();
-            this.receiver = PROGRESS_RECEIVER_POOL.submit(this::receive);
+            PROGRESS_RECEIVER_POOL.submit(this::receive);
         } catch (SocketException e) {
             throw new UncheckedIOException(e);
         }
@@ -69,7 +68,7 @@ public class RemoteProgressBarReceiver implements ProgressBar {
                 switch (message.getType()) {
                     case Exception:
                         if (message.getMessage() != null) {
-                            throw RemoteException.decode(message.getMessage());
+                            thrown.set(message.getMessage());
                         }
                         break;
                     case IntermediateResult:
@@ -96,26 +95,31 @@ public class RemoteProgressBarReceiver implements ProgressBar {
 
     @Override
     public void intermediateResult(@Nullable String message) {
+        maybeThrow();
         delegate.intermediateResult(message);
     }
 
     @Override
     public void finish(String message) {
+        maybeThrow();
         delegate.finish(message);
     }
 
     @Override
     public void step() {
+        maybeThrow();
         delegate.step();
     }
 
     @Override
     public ProgressBar setExtraMessage(String extraMessage) {
+        maybeThrow();
         return delegate.setExtraMessage(extraMessage);
     }
 
     @Override
     public ProgressBar setMax(int max) {
+        maybeThrow();
         return delegate.setMax(max);
     }
 
@@ -123,12 +127,13 @@ public class RemoteProgressBarReceiver implements ProgressBar {
     public void close() {
         closed = true;
         socket.close();
-        try {
-            receiver.get();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        } catch (ExecutionException e) {
-            throw (RuntimeException) e.getCause();
+        maybeThrow();
+    }
+
+    private void maybeThrow() {
+        String t = thrown.get();
+        if (t != null) {
+            throw RemoteException.decode(t);
         }
     }
 }
