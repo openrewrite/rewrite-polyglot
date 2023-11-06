@@ -33,8 +33,6 @@ import org.openrewrite.shaded.jgit.lib.FileMode;
 import org.openrewrite.shaded.jgit.lib.Repository;
 import org.openrewrite.shaded.jgit.treewalk.FileTreeIterator;
 import org.openrewrite.shaded.jgit.treewalk.TreeWalk;
-import org.openrewrite.shaded.jgit.treewalk.WorkingTreeIterator;
-import org.openrewrite.shaded.jgit.treewalk.filter.PathFilterGroup;
 import org.openrewrite.xml.XmlParser;
 import org.openrewrite.yaml.YamlParser;
 
@@ -105,7 +103,6 @@ public class OmniParser implements Parser {
     @Override
     public Stream<SourceFile> parse(Iterable<Path> sourceFiles, @Nullable Path relativeTo, ExecutionContext ctx) {
         int count = 0;
-        //noinspection UnusedAssignment
         for (Path ignored : sourceFiles) {
             count++;
         }
@@ -123,38 +120,69 @@ public class OmniParser implements Parser {
         }
 
         List<Path> accepted = new ArrayList<>();
-        try {
-            Repository repository = getRepository(rootDir);
-            Files.walkFileTree(searchDir, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                    return isExcluded(dir, rootDir) ||
-                           isIgnoredDirectory(dir, searchDir) ||
-                           excludedDirectories.contains(dir) ||
-                           isGitIgnored(repository, dir, rootDir) ?
-                            FileVisitResult.SKIP_SUBTREE :
-                            FileVisitResult.CONTINUE;
-                }
-
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    if (!attrs.isOther() && !attrs.isSymbolicLink() &&
-                        !isExcluded(file, rootDir) &&
-                        !isOverSizeThreshold(attrs.size()) &&
-                        !isGitIgnored(repository, file, rootDir)
-                    ) {
-                        for (Parser parser : parsers) {
-                            if (parser.accept(file)) {
-                                accepted.add(file);
-                                break;
+        Repository repository = getRepository(rootDir);
+        if (repository != null) {
+            try (TreeWalk walk = new TreeWalk(repository)) {
+                walk.addTree(new FileTreeIterator(repository));
+                while (walk.next()) {
+                    for (int i = 0; i < walk.getTreeCount(); i++) {
+                        FileTreeIterator workingTreeIterator = walk.getTree(i, FileTreeIterator.class);
+                        String pathString = workingTreeIterator.getEntryPathString();
+                        Path path = rootDir.resolve(pathString);
+                        FileMode mode = workingTreeIterator.getEntryFileMode();
+                        if (mode.equals(FileMode.TREE) &&
+                            !isExcluded(path, rootDir) &&
+                            !DEFAULT_IGNORED_DIRECTORIES.contains(pathString) &&
+                            !excludedDirectories.contains(path) &&
+                            !workingTreeIterator.isEntryIgnored()) {
+                            walk.enterSubtree();
+                        } else if ((mode.equals(FileMode.EXECUTABLE_FILE) || mode.equals(FileMode.REGULAR_FILE)) &&
+                                   !workingTreeIterator.isEntryIgnored() &&
+                                   !isExcluded(path, rootDir) &&
+                                   !isOverSizeThreshold(workingTreeIterator.getEntryContentLength())) {
+                            for (Parser parser : parsers) {
+                                if (parser.accept(path)) {
+                                    accepted.add(path);
+                                    break;
+                                }
                             }
                         }
                     }
-                    return FileVisitResult.CONTINUE;
                 }
-            });
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        } else {
+            try {
+                Files.walkFileTree(searchDir, new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                        return isExcluded(dir, rootDir) ||
+                               isIgnoredDirectory(dir, searchDir) ||
+                               excludedDirectories.contains(dir) ?
+                                FileVisitResult.SKIP_SUBTREE :
+                                FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        if (!attrs.isOther() && !attrs.isSymbolicLink() &&
+                            !isExcluded(file, rootDir) &&
+                            !isOverSizeThreshold(attrs.size())
+                        ) {
+                            for (Parser parser : parsers) {
+                                if (parser.accept(file)) {
+                                    accepted.add(file);
+                                    break;
+                                }
+                            }
+                        }
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
         }
 
         return accepted;
@@ -167,34 +195,6 @@ public class OmniParser implements Parser {
             // no git
             return null;
         }
-    }
-
-    private boolean isGitIgnored(@Nullable Repository repo, Path path, Path rootDir) {
-        if (repo == null) {
-            return false;
-        }
-
-        String repoRelativePath = rootDir.relativize(path).toString();
-        if (repoRelativePath.isEmpty()) {
-            return false;
-        }
-
-        try (TreeWalk walk = new TreeWalk(repo)) {
-            walk.addTree(new FileTreeIterator(repo));
-            walk.setFilter(PathFilterGroup.createFromStrings(repoRelativePath));
-            while (walk.next()) {
-                WorkingTreeIterator workingTreeIterator = walk.getTree(0, WorkingTreeIterator.class);
-                if (walk.getPathString().equals(repoRelativePath)) {
-                    return workingTreeIterator.isEntryIgnored();
-                }
-                if (workingTreeIterator.getEntryFileMode().equals(FileMode.TREE)) {
-                    walk.enterSubtree();
-                }
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        return false;
     }
 
     @Override
@@ -232,7 +232,7 @@ public class OmniParser implements Parser {
 
     boolean isExcluded(Path path, Path rootDir) {
         Path relativePath;
-        if(path.isAbsolute()) {
+        if (path.isAbsolute()) {
             relativePath = rootDir.relativize(path);
         } else {
             relativePath = path;
