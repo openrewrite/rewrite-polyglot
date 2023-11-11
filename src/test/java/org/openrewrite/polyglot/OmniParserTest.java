@@ -28,17 +28,17 @@ import java.util.List;
 
 import static java.nio.file.Files.writeString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.openrewrite.PathUtils.separatorsToSystem;
 import static org.openrewrite.shaded.jgit.util.FileUtils.*;
 
 public class OmniParserTest {
 
     @Test
-    void isExcluded() {
+    void isExcluded(@TempDir Path root) {
         OmniParser parser = OmniParser.builder(OmniParser.defaultResourceParsers())
           .exclusions(List.of(Paths.get("pom.xml")))
           .build();
-        assertThat(parser.isExcluded(Paths.get("/Users/jon/Projects/github/quarkusio/gizmo/pom.xml"),
-          Paths.get("/Users/jon/Projects/github/quarkusio/gizmo"))).isTrue();
+        assertThat(parser.isExcluded(root.resolve("pom.xml"), root)).isTrue();
     }
 
     @TempDir
@@ -76,11 +76,11 @@ public class OmniParserTest {
         assertThat(paths.stream().map(p -> repo.relativize(p).toString())).contains(
           "file.xml",
           "newfile.xml",
-          "folder/fileinfolder.xml"
+          separatorsToSystem("folder/fileinfolder.xml")
         ).doesNotContain(
           "pom.xml",
           "symlink.xml",
-          "build/ignored_directory_file.xml",
+          separatorsToSystem("build/ignored_directory_file.xml"),
           "gitignored.xml",
           "localexclude.xml"
         );
