@@ -84,6 +84,9 @@ public class OmniParserTest {
           "gitignored.xml",
           "localexclude.xml"
         );
+
+        assertThat(parser.acceptedPaths(repo, repo.resolve("folder")))
+          .containsExactlyInAnyOrder(repo.resolve("folder/fileinfolder.xml"));
     }
 
     void initGit(Path repositoryPath) {
