@@ -33,6 +33,7 @@ import org.openrewrite.shaded.jgit.lib.FileMode;
 import org.openrewrite.shaded.jgit.lib.Repository;
 import org.openrewrite.shaded.jgit.treewalk.FileTreeIterator;
 import org.openrewrite.shaded.jgit.treewalk.TreeWalk;
+import org.openrewrite.shaded.jgit.treewalk.filter.PathFilter;
 import org.openrewrite.xml.XmlParser;
 import org.openrewrite.yaml.YamlParser;
 
@@ -124,6 +125,13 @@ public class OmniParser implements Parser {
         if (repository != null) {
             try (TreeWalk walk = new TreeWalk(repository)) {
                 walk.addTree(new FileTreeIterator(repository));
+                // We use git for walking the file tree, and we should confine the walk to searchDir only
+                // jgit does not support empty path filter, so we refrain from adding a filter when
+                // searchDir is exactly the same as rootDir
+                if (!rootDir.equals(searchDir)) {
+                    String relativePath = rootDir.relativize(searchDir).toString();
+                    walk.setFilter(PathFilter.create(relativePath));
+                }
                 while (walk.next()) {
                     for (int i = 0; i < walk.getTreeCount(); i++) {
                         FileTreeIterator workingTreeIterator = walk.getTree(i, FileTreeIterator.class);
