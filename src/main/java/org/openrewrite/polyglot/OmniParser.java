@@ -305,7 +305,7 @@ public class OmniParser implements Parser {
 
         public Builder exclusionMatchers(Path basePath, Iterable<String> exclusions) {
             return exclusionMatchers(StreamSupport.stream(exclusions.spliterator(), false)
-                    .map((o) -> basePath.getFileSystem().getPathMatcher("glob:" + o))
+                    .map(o -> basePath.getFileSystem().getPathMatcher("glob:" + o))
                     .collect(Collectors.toList()));
         }
 

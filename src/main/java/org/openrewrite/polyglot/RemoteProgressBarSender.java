@@ -42,7 +42,7 @@ public class RemoteProgressBarSender implements ProgressBar {
             this.port = port;
             this.address = address == null ? InetAddress.getByName(localhost) : address;
         } catch (UnknownHostException | SocketException e) {
-            if (localhost.equals("host.docker.internal")) {
+            if ("host.docker.internal".equals(localhost)) {
                 try {
                     this.address = InetAddress.getByName("localhost");
                     this.port = port;

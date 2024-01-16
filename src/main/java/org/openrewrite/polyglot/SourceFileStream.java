@@ -23,7 +23,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public class SourceFileStream implements Stream<SourceFile> {
+public final class SourceFileStream implements Stream<SourceFile> {
 
     @Delegate
     private final Stream<SourceFile> delegate;

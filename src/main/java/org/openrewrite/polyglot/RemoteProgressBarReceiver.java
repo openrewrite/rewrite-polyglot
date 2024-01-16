@@ -35,7 +35,7 @@ public class RemoteProgressBarReceiver implements ProgressBar {
 
     private final ProgressBar delegate;
     private final DatagramSocket socket;
-    private volatile boolean closed = false;
+    private volatile boolean closed;
     private final AtomicReference<String> thrown = new AtomicReference<>();
 
     public RemoteProgressBarReceiver(ProgressBar delegate) {

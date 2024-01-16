@@ -120,15 +120,19 @@ public class RemoteException extends RuntimeException {
         String[] lines = encoded.split("\n");
         return new RemoteException(
                 new String(base64.decode(lines[0]), UTF_8),
-                lines[1].equals("null") ? null : new String(base64.decode(lines[1]), UTF_8),
-                lines[2].equals("null") ? new String[0] : stream(lines[2].split(",")).map(s -> new String(base64.decode(s), UTF_8)).toArray(String[]::new)
+                "null".equals(lines[1]) ? null : new String(base64.decode(lines[1]), UTF_8),
+                "null".equals(lines[2]) ? new String[0] : stream(lines[2].split(",")).map(s -> new String(base64.decode(s), UTF_8)).toArray(String[]::new)
         );
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         RemoteException that = (RemoteException) o;
         return Objects.equals(sanitizedStackTrace, that.sanitizedStackTrace) && Objects.equals(fixSuggestions, that.fixSuggestions);
     }
