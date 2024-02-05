@@ -22,7 +22,7 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.openrewrite.polyglot.RemoteProgressMessage.Type.*;
 
-public class RemoteProgressMessageTest {
+class RemoteProgressMessageTest {
 
     @Test
     void multipartExtraMessage() {

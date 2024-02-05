@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class RemoteProgressBarTest {
+class RemoteProgressBarTest {
 
     @Test
     void remote() throws InterruptedException {

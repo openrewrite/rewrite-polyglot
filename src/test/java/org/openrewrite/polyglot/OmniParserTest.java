@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.openrewrite.PathUtils.separatorsToSystem;
 import static org.openrewrite.shaded.jgit.util.FileUtils.*;
 
-public class OmniParserTest {
+class OmniParserTest {
 
     @Test
     void isExcluded(@TempDir Path root) {

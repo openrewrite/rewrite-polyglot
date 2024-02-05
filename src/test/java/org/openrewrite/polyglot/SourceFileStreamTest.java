@@ -25,7 +25,7 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class SourceFileStreamTest {
+class SourceFileStreamTest {
 
     @Test
     void singleProject() {

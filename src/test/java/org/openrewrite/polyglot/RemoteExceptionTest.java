@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class RemoteExceptionTest {
+class RemoteExceptionTest {
     RemoteException remote = RemoteException.builder("This is a bad thing")
       .cause(new RuntimeException("boom"), "org.openrewrite")
       .fixSuggestions("Please fix")
