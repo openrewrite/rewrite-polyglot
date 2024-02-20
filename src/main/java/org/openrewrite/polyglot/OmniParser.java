@@ -17,10 +17,7 @@ package org.openrewrite.polyglot;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import org.openrewrite.ExecutionContext;
-import org.openrewrite.InMemoryExecutionContext;
-import org.openrewrite.Parser;
-import org.openrewrite.SourceFile;
+import org.openrewrite.*;
 import org.openrewrite.gradle.GradleParser;
 import org.openrewrite.groovy.GroovyParser;
 import org.openrewrite.hcl.HclParser;
@@ -52,6 +49,7 @@ import java.util.stream.StreamSupport;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static org.openrewrite.PathUtils.separatorsToUnix;
 
 @SuppressWarnings("unused")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
@@ -129,7 +127,7 @@ public class OmniParser implements Parser {
                 // jgit does not support empty path filter, so we refrain from adding a filter when
                 // searchDir is exactly the same as rootDir
                 if (!rootDir.equals(searchDir)) {
-                    String relativePath = rootDir.relativize(searchDir).toString();
+                    String relativePath = separatorsToUnix(rootDir.relativize(searchDir).toString());
                     walk.setFilter(PathFilter.create(relativePath));
                 }
                 while (walk.next()) {
