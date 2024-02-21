@@ -71,7 +71,6 @@ public class OmniParser implements Parser {
     private final Collection<Path> exclusions;
     private final Collection<PathMatcher> exclusionMatchers;
     private final int sizeThresholdMb;
-    private final Collection<Path> excludedDirectories;
     private final boolean parallel;
     private final List<Parser> parsers;
     private final Consumer<Integer> onParse;
@@ -138,14 +137,13 @@ public class OmniParser implements Parser {
                         FileMode mode = workingTreeIterator.getEntryFileMode();
                         if (mode.equals(FileMode.TREE) &&
                             !isExcluded(path, rootDir) &&
-                            !DEFAULT_IGNORED_DIRECTORIES.contains(pathString) &&
-                            !excludedDirectories.contains(path) &&
+                            !DEFAULT_IGNORED_DIRECTORIES.contains(path.getFileName().toString()) &&
                             !workingTreeIterator.isEntryIgnored()) {
                             walk.enterSubtree();
                         } else if ((mode.equals(FileMode.EXECUTABLE_FILE) || mode.equals(FileMode.REGULAR_FILE)) &&
                                    !workingTreeIterator.isEntryIgnored() &&
                                    !isExcluded(path, rootDir) &&
-                                   !isOverSizeThreshold(workingTreeIterator.getEntryContentLength())) {
+                                   isWithinSizeThreshold(workingTreeIterator.getEntryContentLength())) {
                             for (Parser parser : parsers) {
                                 if (parser.accept(path)) {
                                     accepted.add(path);
@@ -164,8 +162,7 @@ public class OmniParser implements Parser {
                     @Override
                     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                         return isExcluded(dir, rootDir) ||
-                               isIgnoredDirectory(dir, searchDir) ||
-                               excludedDirectories.contains(dir) ?
+                               isIgnoredDirectory(dir, searchDir) ?
                                 FileVisitResult.SKIP_SUBTREE :
                                 FileVisitResult.CONTINUE;
                     }
@@ -174,7 +171,7 @@ public class OmniParser implements Parser {
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                         if (!attrs.isOther() && !attrs.isSymbolicLink() &&
                             !isExcluded(file, rootDir) &&
-                            !isOverSizeThreshold(attrs.size())
+                            isWithinSizeThreshold(attrs.size())
                         ) {
                             for (Parser parser : parsers) {
                                 if (parser.accept(file)) {
@@ -232,8 +229,8 @@ public class OmniParser implements Parser {
         return Paths.get("resource.me");
     }
 
-    private boolean isOverSizeThreshold(long fileSize) {
-        return sizeThresholdMb > 0 && fileSize > sizeThresholdMb * 1024L * 1024L;
+    private boolean isWithinSizeThreshold(long fileSize) {
+        return sizeThresholdMb <= 0 || fileSize <= sizeThresholdMb * 1024L * 1024L;
     }
 
     boolean isExcluded(Path path, Path rootDir) {
@@ -280,7 +277,6 @@ public class OmniParser implements Parser {
         private Collection<Path> exclusions = emptyList();
         private Collection<PathMatcher> exclusionMatchers = emptyList();
         private int sizeThresholdMb = 10;
-        private Collection<Path> excludedDirectories = emptyList();
         private boolean parallel;
         private Consumer<Integer> onParse = inputCount -> {
         };
@@ -312,11 +308,6 @@ public class OmniParser implements Parser {
             return this;
         }
 
-        public Builder excludedDirectories(Collection<Path> excludedDirectories) {
-            this.excludedDirectories = excludedDirectories;
-            return this;
-        }
-
         public Builder onParse(Consumer<Integer> onParse) {
             this.onParse = onParse;
             return this;
@@ -336,8 +327,7 @@ public class OmniParser implements Parser {
 
         @Override
         public OmniParser build() {
-            return new OmniParser(exclusions, exclusionMatchers, sizeThresholdMb,
-                    excludedDirectories, parallel, parsers, onParse);
+            return new OmniParser(exclusions, exclusionMatchers, sizeThresholdMb, parallel, parsers, onParse);
         }
 
         @Override
