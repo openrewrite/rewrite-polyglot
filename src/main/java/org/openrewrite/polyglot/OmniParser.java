@@ -25,12 +25,12 @@ import org.openrewrite.internal.lang.Nullable;
 import org.openrewrite.json.JsonParser;
 import org.openrewrite.properties.PropertiesParser;
 import org.openrewrite.protobuf.ProtoParser;
-import org.openrewrite.shaded.jgit.api.Git;
-import org.openrewrite.shaded.jgit.lib.FileMode;
-import org.openrewrite.shaded.jgit.lib.Repository;
-import org.openrewrite.shaded.jgit.treewalk.FileTreeIterator;
-import org.openrewrite.shaded.jgit.treewalk.TreeWalk;
-import org.openrewrite.shaded.jgit.treewalk.filter.PathFilter;
+import org.openrewrite.jgit.api.Git;
+import org.openrewrite.jgit.lib.FileMode;
+import org.openrewrite.jgit.lib.Repository;
+import org.openrewrite.jgit.treewalk.FileTreeIterator;
+import org.openrewrite.jgit.treewalk.TreeWalk;
+import org.openrewrite.jgit.treewalk.filter.PathFilter;
 import org.openrewrite.xml.XmlParser;
 import org.openrewrite.yaml.YamlParser;
 

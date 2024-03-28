@@ -19,8 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.openrewrite.shaded.jgit.api.Git;
-import org.openrewrite.shaded.jgit.transport.URIish;
+import org.openrewrite.jgit.api.Git;
+import org.openrewrite.jgit.transport.URIish;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -30,7 +30,7 @@ import java.util.List;
 import static java.nio.file.Files.writeString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.openrewrite.PathUtils.separatorsToSystem;
-import static org.openrewrite.shaded.jgit.util.FileUtils.*;
+import static org.openrewrite.jgit.util.FileUtils.*;
 
 class OmniParserTest {
 
