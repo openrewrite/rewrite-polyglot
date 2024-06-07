@@ -22,15 +22,15 @@ import org.openrewrite.gradle.GradleParser;
 import org.openrewrite.groovy.GroovyParser;
 import org.openrewrite.hcl.HclParser;
 import org.openrewrite.internal.lang.Nullable;
-import org.openrewrite.json.JsonParser;
-import org.openrewrite.properties.PropertiesParser;
-import org.openrewrite.protobuf.ProtoParser;
 import org.openrewrite.jgit.api.Git;
 import org.openrewrite.jgit.lib.FileMode;
 import org.openrewrite.jgit.lib.Repository;
 import org.openrewrite.jgit.treewalk.FileTreeIterator;
 import org.openrewrite.jgit.treewalk.TreeWalk;
 import org.openrewrite.jgit.treewalk.filter.PathFilter;
+import org.openrewrite.json.JsonParser;
+import org.openrewrite.properties.PropertiesParser;
+import org.openrewrite.protobuf.ProtoParser;
 import org.openrewrite.xml.XmlParser;
 import org.openrewrite.yaml.YamlParser;
 

@@ -17,4 +17,3 @@
 package org.openrewrite.polyglot;
 
 import org.openrewrite.internal.lang.NonNullApi;
-
