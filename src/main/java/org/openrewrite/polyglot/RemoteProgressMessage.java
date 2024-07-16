@@ -43,8 +43,7 @@ class RemoteProgressMessage {
         this.id = id;
     }
 
-    @Nullable
-    public String getMessage() {
+    public @Nullable String getMessage() {
         return fragments.isEmpty() ? null : String.join("", fragments.values());
     }
 
@@ -56,9 +55,8 @@ class RemoteProgressMessage {
         Exception
     }
 
-    @Nullable
-    public static RemoteProgressMessage receive(DatagramSocket socket, Map<UUID, RemoteProgressMessage> incompleteMessages)
-            throws IOException {
+    public static @Nullable RemoteProgressMessage receive(DatagramSocket socket, Map<UUID, RemoteProgressMessage> incompleteMessages)
+      throws IOException {
         byte[] buf = new byte[PACKET_LENGTH];
         DatagramPacket packet = new DatagramPacket(buf, PACKET_LENGTH);
         try {
@@ -76,8 +74,7 @@ class RemoteProgressMessage {
      * @param incompleteMessages A collection of incomplete messages.
      * @return A {@link RemoteProgressMessage} if the message is completed by this packet, null otherwise.
      */
-    @Nullable
-    public static RemoteProgressMessage read(byte[] packet, int length, Map<UUID, RemoteProgressMessage> incompleteMessages) {
+    public static @Nullable RemoteProgressMessage read(byte[] packet, int length, Map<UUID, RemoteProgressMessage> incompleteMessages) {
         if (length < 42) {
             return null; // not a V2 packet;
         }
