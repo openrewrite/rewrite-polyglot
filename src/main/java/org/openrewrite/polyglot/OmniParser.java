@@ -17,11 +17,11 @@ package org.openrewrite.polyglot;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.openrewrite.*;
 import org.openrewrite.gradle.GradleParser;
 import org.openrewrite.groovy.GroovyParser;
 import org.openrewrite.hcl.HclParser;
-import org.openrewrite.internal.lang.Nullable;
 import org.openrewrite.jgit.api.Git;
 import org.openrewrite.jgit.lib.FileMode;
 import org.openrewrite.jgit.lib.Repository;

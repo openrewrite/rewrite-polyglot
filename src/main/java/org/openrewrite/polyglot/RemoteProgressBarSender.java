@@ -15,7 +15,7 @@
  */
 package org.openrewrite.polyglot;
 
-import org.openrewrite.internal.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.openrewrite.polyglot.RemoteProgressMessage.Type;
 
 import java.io.IOException;
