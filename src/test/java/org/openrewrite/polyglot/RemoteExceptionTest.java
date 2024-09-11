@@ -17,10 +17,9 @@ package org.openrewrite.polyglot;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RemoteExceptionTest {
@@ -39,9 +38,7 @@ class RemoteExceptionTest {
 
     @Test
     void encodeDecodeWithoutCause() {
-        RemoteException remote = RemoteException.builder("This is a bad thing")
-          .fixSuggestions("Please fix")
-          .build();
+        RemoteException remote = RemoteException.builder("This is a bad thing").fixSuggestions("Please fix").build();
 
         RemoteException decoded = RemoteException.decode(remote.encode());
         assertThat(decoded).isEqualTo(remote);
@@ -62,12 +59,11 @@ class RemoteExceptionTest {
         // To test deserializing exceptions serialized using legacy versions of rewrite-polyglot
         Base64.Encoder base64 = Base64.getEncoder();
         StringBuilder builder = new StringBuilder(256);
-        builder.append(base64.encodeToString("This is a bad thing".getBytes(UTF_8))).append('\n');
+        builder.append(base64.encodeToString("This is a bad thing".getBytes(StandardCharsets.UTF_8))).append('\n');
         builder.append("null").append('\n');
         builder.append("null");
 
-        RemoteException remote = RemoteException.builder("This is a bad thing")
-          .build();
+        RemoteException remote = RemoteException.builder("This is a bad thing").build();
 
         RemoteException decoded = RemoteException.decode(builder.toString());
         assertThat(decoded.getMessage()).isEqualTo(remote.getMessage());
