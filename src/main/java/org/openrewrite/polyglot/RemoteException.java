@@ -35,10 +35,16 @@ public class RemoteException extends RuntimeException {
 
     private final List<String> fixSuggestions;
 
-    RemoteException(String message, @Nullable String sanitizedStackTrace, String[] fixSuggestions) {
+    private final boolean partialSuccess;
+
+    RemoteException(String message,
+                    @Nullable String sanitizedStackTrace,
+                    String[] fixSuggestions,
+                    boolean partialSuccess) {
         super(message);
         this.sanitizedStackTrace = sanitizedStackTrace;
         this.fixSuggestions = new ArrayList<>(Arrays.asList(fixSuggestions));
+        this.partialSuccess = partialSuccess;
     }
 
     public static Builder builder(String message, String... stackTracePrefixFilter) {
@@ -49,6 +55,7 @@ public class RemoteException extends RuntimeException {
         private final String message;
         private final List<String> fixSuggestions = new ArrayList<>();
         private String sanitizedStackTrace;
+        private boolean partialSuccess;
 
         public Builder(String message, String... stackTracePrefixFilter) {
             this.message = message;
@@ -66,12 +73,25 @@ public class RemoteException extends RuntimeException {
         }
 
         public Builder fixSuggestions(String... fixSuggestions) {
-            this.fixSuggestions.addAll(Arrays.asList(fixSuggestions));
+            return fixSuggestions(Arrays.asList(fixSuggestions));
+        }
+
+        public Builder fixSuggestions(List<String> fixSuggestions) {
+            this.fixSuggestions.addAll(fixSuggestions);
+            return this;
+        }
+
+        public Builder partialSuccess(boolean partialSuccess) {
+            this.partialSuccess = partialSuccess;
             return this;
         }
 
         public RemoteException build() {
-            return new RemoteException(message, sanitizedStackTrace, fixSuggestions.toArray(new String[0]));
+            return new RemoteException(
+                    message,
+                    sanitizedStackTrace,
+                    fixSuggestions.toArray(new String[0]),
+                    partialSuccess);
         }
     }
 
@@ -110,19 +130,36 @@ public class RemoteException extends RuntimeException {
 
     public String encode() {
         Base64.Encoder base64 = Base64.getEncoder();
-        return base64.encodeToString(getMessage().getBytes(UTF_8)) + "\n" +
-               (sanitizedStackTrace == null ? "null" : base64.encodeToString(sanitizedStackTrace.getBytes(UTF_8))) + "\n" +
-               (fixSuggestions.isEmpty() ? "null" : fixSuggestions.stream().map(s -> base64.encodeToString(s.getBytes(UTF_8))).collect(joining(",")));
+        StringBuilder builder = new StringBuilder(256);
+        builder.append(base64.encodeToString(getMessage().getBytes(UTF_8))).append('\n');
+        if (sanitizedStackTrace != null) {
+            builder.append(base64.encodeToString(sanitizedStackTrace.getBytes(UTF_8))).append('\n');
+        } else {
+            builder.append("null").append('\n');
+        }
+        if (!fixSuggestions.isEmpty()) {
+            String suggestions = fixSuggestions.stream()
+                    .map(s -> s.getBytes(UTF_8))
+                    .map(base64::encodeToString)
+                    .collect(joining(","));
+            builder.append(suggestions).append('\n');
+        } else {
+            builder.append("null").append('\n');
+        }
+        builder.append(partialSuccess);
+        return builder.toString();
     }
 
     public static RemoteException decode(String encoded) {
         Base64.Decoder base64 = Base64.getDecoder();
         String[] lines = encoded.split("\n");
-        return new RemoteException(
-                new String(base64.decode(lines[0]), UTF_8),
-                "null".equals(lines[1]) ? null : new String(base64.decode(lines[1]), UTF_8),
-                "null".equals(lines[2]) ? new String[0] : stream(lines[2].split(",")).map(s -> new String(base64.decode(s), UTF_8)).toArray(String[]::new)
-        );
+        String message = new String(base64.decode(lines[0]), UTF_8);
+        String stackTrace = "null".equals(lines[1]) ? null : new String(base64.decode(lines[1]), UTF_8);
+        String[] suggestions = "null".equals(lines[2]) ?
+                new String[0] :
+                stream(lines[2].split(",")).map(s -> new String(base64.decode(s), UTF_8)).toArray(String[]::new);
+        boolean partialSuccess = lines.length > 3 ? Boolean.parseBoolean(lines[3]) : false;
+        return new RemoteException(message, stackTrace, suggestions, partialSuccess);
     }
 
     @Override
