@@ -30,4 +30,7 @@ dependencies {
     implementation("org.openrewrite:rewrite-protobuf")
     implementation("org.openrewrite:rewrite-xml")
     implementation("org.openrewrite:rewrite-yaml")
+
+    testRuntimeOnly("org.openrewrite:rewrite-java-17")
+    testRuntimeOnly("org.openrewrite:rewrite-java-21")
 }

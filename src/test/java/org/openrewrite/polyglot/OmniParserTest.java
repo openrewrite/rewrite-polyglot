@@ -19,10 +19,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.openrewrite.InMemoryExecutionContext;
+import org.openrewrite.SourceFile;
+import org.openrewrite.java.JavaParser;
+import org.openrewrite.java.tree.J;
+import org.openrewrite.java.tree.JavaType;
+import org.openrewrite.java.tree.TypeUtils;
 import org.openrewrite.jgit.api.Git;
 import org.openrewrite.jgit.transport.URIish;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -91,6 +98,40 @@ class OmniParserTest {
 
         assertThat(parser.acceptedPaths(repo, repo.resolve("folder")))
           .containsExactlyInAnyOrder(repo.resolve("folder/fileinfolder.xml"));
+    }
+
+    /**
+     * For some parsers it is acceptable to parse sources independently, e.g.: xml.
+     * This isn't the case for Java and similar languages where related sources need to be parsed together
+     * so that references to types defined in other sources can be understood and type-attributed.
+     */
+    @Test
+    void javaSourcesNotSensitiveToOrder() throws IOException {
+        Path superPath = repo.resolve("Super.java");
+        Files.write(superPath, "public class Super {}".getBytes());
+        Path basePath = repo.resolve("Base.java");
+        Files.write(basePath, "public class Base extends Super {}".getBytes());
+
+        List<SourceFile> parsed = OmniParser.builder(JavaParser.fromJavaVersion().build())
+          .build()
+          .parse(List.of(basePath, superPath), repo, new InMemoryExecutionContext())
+          .toList();
+
+        assertThat(parsed).hasSize(2);
+        assertThat(parsed.stream()
+          .filter(it -> it.getSourcePath().toString().contains("Base"))
+          .map(J.CompilationUnit.class::cast)
+          .findAny())
+          .isPresent()
+          .get()
+          .as("Type attribution for class \"Base\" class should include that its supertype is \"Super\"")
+          .matches(base -> {
+              JavaType.FullyQualified baseType = base.getClasses().get(0).getType();
+              if (baseType instanceof JavaType.Class) {
+                  return TypeUtils.isWellFormedType(baseType.getSupertype());
+              }
+              return false;
+          });
     }
 
     @ParameterizedTest

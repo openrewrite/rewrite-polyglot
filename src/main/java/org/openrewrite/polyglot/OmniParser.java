@@ -38,10 +38,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -203,15 +200,26 @@ public class OmniParser implements Parser {
     @Override
     public Stream<SourceFile> parseInputs(Iterable<Input> sources, @Nullable Path relativeTo,
                                           ExecutionContext ctx) {
-        return StreamSupport.stream(sources.spliterator(), parallel).flatMap(input -> {
-            Path path = input.getPath();
-            for (Parser parser : parsers) {
-                if (parser.accept(path)) {
-                    return parser.parseInputs(Collections.singletonList(input), relativeTo, ctx);
-                }
-            }
-            return Stream.empty();
-        });
+        // Group inputs by parser so that source files which need to be parsed together are.
+        // e.g.: Two java classes which reference each other must be passed into JavaParser together
+        Map<Parser, List<Input>> parserToInputs = StreamSupport.stream(sources.spliterator(), false)
+                .collect(Collectors.groupingBy(input -> {
+                    Path path = input.getPath();
+                    for (Parser parser : parsers) {
+                        if (parser.accept(path)) {
+                            return parser;
+                        }
+                    }
+                    throw new IllegalArgumentException("Attempting to parse \"" + path + "\", but no parser is available to handle it.");
+                }));
+
+        Stream<SourceFile> result = Stream.empty();
+        for (Map.Entry<Parser, List<Input>> entry : parserToInputs.entrySet()) {
+            Parser parser = entry.getKey();
+            List<Input> inputs = entry.getValue();
+            result = Stream.concat(result, parser.parseInputs(inputs, relativeTo, ctx));
+        }
+        return result;
     }
 
     @Override
