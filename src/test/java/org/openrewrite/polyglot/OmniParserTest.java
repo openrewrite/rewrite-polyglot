@@ -111,10 +111,12 @@ class OmniParserTest {
         Files.write(superPath, "public class Super {}".getBytes());
         Path basePath = repo.resolve("Base.java");
         Files.write(basePath, "public class Base extends Super {}".getBytes());
+        Path otherPath = repo.resolve("text.txt");
+        Files.write(otherPath, "text".getBytes());
 
         List<SourceFile> parsed = OmniParser.builder(JavaParser.fromJavaVersion().build())
           .build()
-          .parse(List.of(basePath, superPath), repo, new InMemoryExecutionContext())
+          .parse(List.of(basePath, superPath, otherPath), repo, new InMemoryExecutionContext())
           .toList();
 
         assertThat(parsed).hasSize(2);

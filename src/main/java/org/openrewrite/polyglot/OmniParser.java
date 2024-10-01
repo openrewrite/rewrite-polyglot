@@ -51,6 +51,24 @@ import static org.openrewrite.PathUtils.separatorsToUnix;
 @SuppressWarnings("unused")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class OmniParser implements Parser {
+
+    private static final Parser NOOP_PARSER = new Parser() {
+        @Override
+        public Stream<SourceFile> parseInputs(Iterable<Input> sources, @Nullable Path relativeTo, ExecutionContext ctx) {
+            return Stream.empty();
+        }
+
+        @Override
+        public boolean accept(Path path) {
+            return true;
+        }
+
+        @Override
+        public Path sourcePathFromSourceText(Path prefix, String sourceCode) {
+            return prefix;
+        }
+    };
+
     private static final Collection<String> DEFAULT_IGNORED_DIRECTORIES = asList(
             "build",
             "target",
@@ -210,7 +228,7 @@ public class OmniParser implements Parser {
                             return parser;
                         }
                     }
-                    throw new IllegalArgumentException("Attempting to parse \"" + path + "\", but no parser is available to handle it.");
+                    return NOOP_PARSER;
                 }));
 
         Stream<SourceFile> result = Stream.empty();
