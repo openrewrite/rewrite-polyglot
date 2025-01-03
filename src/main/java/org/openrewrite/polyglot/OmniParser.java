@@ -91,6 +91,7 @@ public class OmniParser implements Parser {
                 new YamlParser(),
                 new PropertiesParser(),
                 new ProtoParser(),
+                new TomlParser(),
                 HclParser.builder().build(),
                 GroovyParser.builder().build(),
                 GradleParser.builder().build()
