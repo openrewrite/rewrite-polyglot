@@ -19,6 +19,7 @@ import org.openrewrite.jgit.treewalk.filter.PathFilter;
 import org.openrewrite.json.JsonParser;
 import org.openrewrite.properties.PropertiesParser;
 import org.openrewrite.protobuf.ProtoParser;
+import org.openrewrite.toml.TomlParser;
 import org.openrewrite.xml.XmlParser;
 import org.openrewrite.yaml.YamlParser;
 
@@ -91,6 +92,7 @@ public class OmniParser implements Parser {
                 new YamlParser(),
                 new PropertiesParser(),
                 new ProtoParser(),
+                new TomlParser(),
                 HclParser.builder().build(),
                 GroovyParser.builder().build(),
                 GradleParser.builder().build()
