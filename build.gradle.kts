@@ -20,7 +20,7 @@ dependencies {
     compileOnly("com.google.code.findbugs:jsr305:latest.release")
     annotationProcessor("org.projectlombok:lombok:latest.release")
 
-    implementation(platform("org.openrewrite:rewrite-bom:$latest"))
+    implementation(platform("org.openrewrite:rewrite-bom:8.41.1"))
     implementation("org.openrewrite:rewrite-groovy")
     implementation("org.openrewrite:rewrite-gradle")
     implementation("org.openrewrite:rewrite-hcl")
