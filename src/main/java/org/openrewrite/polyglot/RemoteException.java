@@ -6,6 +6,7 @@ package org.openrewrite.polyglot;
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 
+import java.io.PrintWriter;
 import java.util.*;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -148,6 +149,14 @@ public class RemoteException extends RuntimeException {
                 stream(lines[2].split(",")).map(s -> new String(base64.decode(s), UTF_8)).toArray(String[]::new);
         boolean partialSuccess = lines.length > 3 ? Boolean.parseBoolean(lines[3]) : false;
         return new RemoteException(message, stackTrace, suggestions, partialSuccess);
+    }
+
+    @Override
+    public void printStackTrace(PrintWriter s) {
+        s.println(this);
+        if (sanitizedStackTrace != null) {
+            s.println(sanitizedStackTrace);
+        }
     }
 
     @Override

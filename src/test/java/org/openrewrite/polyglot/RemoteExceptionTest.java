@@ -5,6 +5,8 @@ package org.openrewrite.polyglot;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
@@ -58,5 +60,24 @@ class RemoteExceptionTest {
         assertThat(decoded.getCause()).isEqualTo(remote.getCause());
         assertThat(decoded.getFixSuggestions()).isEqualTo(remote.getFixSuggestions());
         assertThat(decoded.isPartialSuccess()).isEqualTo(remote.isPartialSuccess());
+    }
+
+    @Test
+    void printStackTrace() {
+        RemoteException remote = RemoteException.builder("This is a bad thing")
+          .cause(new RuntimeException("boom"))
+          .fixSuggestions("Please fix")
+          .partialSuccess(true)
+          .build();
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (PrintWriter p = new PrintWriter(out)) {
+            remote.printStackTrace(p);
+        }
+
+        String stackTrace = out.toString();
+        assertThat(stackTrace).contains("org.openrewrite.polyglot.RemoteException: This is a bad thing");
+        assertThat(stackTrace).contains("java.lang.RuntimeException: boom");
+        assertThat(stackTrace).contains("org.openrewrite.polyglot.RemoteExceptionTest.printStackTrace");
     }
 }
