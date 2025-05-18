@@ -128,7 +128,7 @@ class OmniParserTest {
           .get()
           .as("Type attribution for class \"Base\" class should include that its supertype is \"Super\"")
           .matches(base -> {
-              JavaType.FullyQualified baseType = base.getClasses().get(0).getType();
+              JavaType.FullyQualified baseType = base.getClasses().getFirst().getType();
               if (baseType instanceof JavaType.Class) {
                   return TypeUtils.isWellFormedType(baseType.getSupertype());
               }
