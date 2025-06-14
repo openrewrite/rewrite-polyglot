@@ -15,7 +15,7 @@
 <div align="center">
 
 <!-- Keep the gap above this line, otherwise they won't render correctly! -->
-[![ci](https://github.com/openrewrite/rewrite-polyglot/actions/workflows/ci.yml/badge.svg)](https://github.com/openrewrite/rewrite-polyglot/actions/workflows/ci.yml)
+[![ci](https://github.com/moderneinc/rewrite-polyglot/actions/workflows/ci.yml/badge.svg)](https://github.com/moderneinc/rewrite-polyglot/actions/workflows/ci.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/org.openrewrite/rewrite-polyglot.svg)](https://mvnrepository.com/artifact/org.openrewrite/rewrite-polyglot)
 [![Apache 2.0](https://img.shields.io/github/license/openrewrite/rewrite-polyglot.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Revved up by Develocity](https://img.shields.io/badge/Revved%20up%20by-Develocity-06A0CE?logo=Gradle&labelColor=02303A)](https://ge.openrewrite.org/scans)
