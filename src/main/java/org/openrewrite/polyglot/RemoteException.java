@@ -186,7 +186,6 @@ public class RemoteException extends RuntimeException {
     @Override
     public int hashCode() {
         int result = Objects.hash(sanitizedStackTrace);
-        result = 31 * result + Objects.hashCode(fixSuggestions);
-        return result;
+        return 31 * result + Objects.hashCode(fixSuggestions);
     }
 }
