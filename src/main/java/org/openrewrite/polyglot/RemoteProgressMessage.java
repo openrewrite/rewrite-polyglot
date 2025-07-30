@@ -102,7 +102,7 @@ class RemoteProgressMessage {
         byte[] messageFragmentBytes = new byte[length - 42];
         System.arraycopy(packet, 42, messageFragmentBytes, 0, length - 42);
         String messageFragment = new String(messageFragmentBytes);
-        if (messageFragment.equals(EOM)) {
+        if (EOM.equals(messageFragment)) {
             message.fragmentTotal = index; // index is zero-based
         } else {
             message.fragments.put(index, messageFragment);
