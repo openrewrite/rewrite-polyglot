@@ -47,12 +47,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 import static org.openrewrite.PathUtils.separatorsToUnix;
 
 @SuppressWarnings("unused")
@@ -229,7 +230,7 @@ public class OmniParser implements Parser {
         // Group inputs by parser so that source files which need to be parsed together are.
         // e.g.: Two java classes which reference each other must be passed into JavaParser together
         Map<Parser, List<Input>> parserToInputs = StreamSupport.stream(sources.spliterator(), false)
-                .collect(Collectors.groupingBy(input -> {
+                .collect(groupingBy(input -> {
                     Path path = input.getPath();
                     for (Parser parser : parsers) {
                         if (parser.accept(path)) {
@@ -334,7 +335,7 @@ public class OmniParser implements Parser {
         public Builder exclusionMatchers(Path basePath, Iterable<String> exclusions) {
             return exclusionMatchers(StreamSupport.stream(exclusions.spliterator(), false)
                     .map(o -> basePath.getFileSystem().getPathMatcher("glob:" + o))
-                    .collect(Collectors.toList()));
+                    .collect(toList()));
         }
 
         public Builder sizeThresholdMb(int sizeThresholdMb) {
