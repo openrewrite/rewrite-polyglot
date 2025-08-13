@@ -87,8 +87,7 @@ public class OmniParser implements Parser {
             "node_modules",
             ".git",
             ".metadata",
-            ".DS_Store",
-            ".moderne"
+            ".DS_Store"
     );
 
     private final Collection<Path> exclusions;
