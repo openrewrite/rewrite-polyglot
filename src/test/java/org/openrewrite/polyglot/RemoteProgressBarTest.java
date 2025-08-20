@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RemoteProgressBarTest {
 
     @Test
-    void remote() throws InterruptedException {
+    void remote() throws Exception {
         CountDownLatch latch = new CountDownLatch(4);
         try (
           ProgressBar progressBar = new ProgressBar() {

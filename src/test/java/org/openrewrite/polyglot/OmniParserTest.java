@@ -28,7 +28,6 @@ import org.openrewrite.java.tree.TypeUtils;
 import org.openrewrite.jgit.api.Git;
 import org.openrewrite.jgit.transport.URIish;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -53,7 +52,7 @@ class OmniParserTest {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void acceptedPaths(boolean gitRepo) throws IOException {
+    void acceptedPaths(boolean gitRepo) throws Exception {
         touch(repo.resolve("file.xml"));
         mkdirs(repo.resolve("folder").toFile());
         touch(repo.resolve("folder/fileinfolder.xml"));
@@ -105,7 +104,7 @@ class OmniParserTest {
      * so that references to types defined in other sources can be understood and type-attributed.
      */
     @Test
-    void javaSourcesNotSensitiveToOrder() throws IOException {
+    void javaSourcesNotSensitiveToOrder() throws Exception {
         Path superPath = repo.resolve("Super.java");
         Files.write(superPath, "public class Super {}".getBytes());
         Path basePath = repo.resolve("Base.java");
@@ -137,7 +136,7 @@ class OmniParserTest {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void buildRootDiffersFromRepositoryRoot(boolean gitRepo) throws IOException {
+    void buildRootDiffersFromRepositoryRoot(boolean gitRepo) throws Exception {
         if(gitRepo) {
             initGit(repo);
         }

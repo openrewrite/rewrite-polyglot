@@ -70,7 +70,7 @@ class RemoteExceptionTest {
         RemoteException decoded = RemoteException.decode(builder.toString());
         assertThat(decoded.getMessage()).isEqualTo(remote.getMessage());
         assertThat(decoded.getCause()).isEqualTo(remote.getCause());
-        assertThat(decoded.getFixSuggestions()).isEqualTo(remote.getFixSuggestions());
+        assertThat(decoded.getFixSuggestions()).containsExactlyElementsOf(remote.getFixSuggestions());
         assertThat(decoded.isPartialSuccess()).isEqualTo(remote.isPartialSuccess());
     }
 
@@ -88,8 +88,9 @@ class RemoteExceptionTest {
         }
 
         String stackTrace = out.toString();
-        assertThat(stackTrace).contains("org.openrewrite.polyglot.RemoteException: This is a bad thing");
-        assertThat(stackTrace).contains("java.lang.RuntimeException: boom");
-        assertThat(stackTrace).contains("org.openrewrite.polyglot.RemoteExceptionTest.printStackTrace");
+        assertThat(stackTrace)
+                .contains("org.openrewrite.polyglot.RemoteException: This is a bad thing")
+                .contains("java.lang.RuntimeException: boom")
+                .contains("org.openrewrite.polyglot.RemoteExceptionTest.printStackTrace");
     }
 }
