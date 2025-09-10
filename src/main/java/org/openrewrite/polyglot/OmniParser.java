@@ -74,7 +74,7 @@ public class OmniParser implements Parser {
         }
     };
 
-    private static final Collection<String> DEFAULT_IGNORED_DIRECTORIES = asList(
+    private static final Collection<String> DEFAULT_IGNORED_DIRECTORIES = new HashSet<>(asList(
             "build",
             "target",
             "out",
@@ -85,7 +85,7 @@ public class OmniParser implements Parser {
             ".git",
             ".metadata",
             ".DS_Store"
-    );
+    ));
 
     private final Collection<Path> exclusions;
     private final Collection<PathMatcher> exclusionMatchers;
@@ -156,14 +156,14 @@ public class OmniParser implements Parser {
                         Path path = rootDir.resolve(pathString);
                         FileMode mode = workingTreeIterator.getEntryFileMode();
                         if (mode.equals(FileMode.TREE) &&
-                            !isExcluded(path, rootDir) &&
-                            !DEFAULT_IGNORED_DIRECTORIES.contains(path.getFileName().toString()) &&
-                            !workingTreeIterator.isEntryIgnored()) {
+                                !isExcluded(path, rootDir) &&
+                                !DEFAULT_IGNORED_DIRECTORIES.contains(path.getFileName().toString()) &&
+                                !workingTreeIterator.isEntryIgnored()) {
                             walk.enterSubtree();
                         } else if ((mode.equals(FileMode.EXECUTABLE_FILE) || mode.equals(FileMode.REGULAR_FILE)) &&
-                                   !workingTreeIterator.isEntryIgnored() &&
-                                   !isExcluded(path, rootDir) &&
-                                   isWithinSizeThreshold(workingTreeIterator.getEntryContentLength())) {
+                                !workingTreeIterator.isEntryIgnored() &&
+                                !isExcluded(path, rootDir) &&
+                                isWithinSizeThreshold(workingTreeIterator.getEntryContentLength())) {
                             for (Parser parser : parsers) {
                                 if (parser.accept(path)) {
                                     accepted.add(path);
@@ -182,7 +182,7 @@ public class OmniParser implements Parser {
                     @Override
                     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                         return isExcluded(dir, rootDir) ||
-                               isIgnoredDirectory(dir, searchDir) ?
+                                isIgnoredDirectory(dir, searchDir) ?
                                 FileVisitResult.SKIP_SUBTREE :
                                 FileVisitResult.CONTINUE;
                     }
@@ -190,8 +190,8 @@ public class OmniParser implements Parser {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                         if (!attrs.isOther() && !attrs.isSymbolicLink() &&
-                            !isExcluded(file, rootDir) &&
-                            isWithinSizeThreshold(attrs.size())
+                                !isExcluded(file, rootDir) &&
+                                isWithinSizeThreshold(attrs.size())
                         ) {
                             for (Parser parser : parsers) {
                                 if (parser.accept(file)) {
