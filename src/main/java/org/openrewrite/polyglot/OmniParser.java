@@ -42,10 +42,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -322,7 +319,7 @@ public class OmniParser implements Parser {
         }
 
         public Builder exclusions(Collection<Path> exclusions) {
-            this.exclusions = exclusions;
+            this.exclusions = new LinkedHashSet<>(exclusions);
             return this;
         }
 
