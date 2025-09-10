@@ -132,7 +132,10 @@ public class RemoteException extends RuntimeException {
     public String encode() {
         Base64.Encoder base64 = Base64.getEncoder();
         StringBuilder builder = new StringBuilder(256);
-        builder.append(base64.encodeToString(getMessage().getBytes(UTF_8))).append('\n');
+        String message = getMessage();
+        if (message != null) {
+            builder.append(base64.encodeToString(message.getBytes(UTF_8))).append('\n');
+        }
         if (sanitizedStackTrace != null) {
             builder.append(base64.encodeToString(sanitizedStackTrace.getBytes(UTF_8))).append('\n');
         } else {
