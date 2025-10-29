@@ -33,6 +33,6 @@ dependencies {
     implementation("org.openrewrite:rewrite-yaml")
 
     testImplementation("org.openrewrite:rewrite-test")
-    testRuntimeOnly("org.openrewrite:rewrite-java-17")
+    testRuntimeOnly("org.openrewrite:rewrite-java-21")
     testRuntimeOnly("org.openrewrite:rewrite-java-21")
 }
