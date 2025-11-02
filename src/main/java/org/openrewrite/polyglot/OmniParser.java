@@ -22,6 +22,7 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Parser;
 import org.openrewrite.SourceFile;
+import org.openrewrite.docker.DockerfileParser;
 import org.openrewrite.gradle.GradleParser;
 import org.openrewrite.groovy.GroovyParser;
 import org.openrewrite.hcl.HclParser;
@@ -108,6 +109,7 @@ public class OmniParser implements Parser {
                 new PropertiesParser(),
                 new ProtoParser(),
                 new TomlParser(),
+                new DockerfileParser(),
                 HclParser.builder().build(),
                 GroovyParser.builder().build(),
                 GradleParser.builder().build()
