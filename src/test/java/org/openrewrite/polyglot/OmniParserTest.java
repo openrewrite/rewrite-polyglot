@@ -81,7 +81,7 @@ class OmniParserTest {
           .build();
 
         List<Path> paths = parser.acceptedPaths(repo);
-        assertThat(paths.stream().map(p -> repo.relativize(p).toString())).contains(
+        assertThat(paths).extracting(p -> repo.relativize(p).toString()).contains(
           "file.xml",
           "newfile.xml",
           separatorsToSystem("folder/fileinfolder.xml")
