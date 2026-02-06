@@ -1,0 +1,10 @@
+{
+  "nodes" : [ {
+    "uniqueId" : "remote-progress-message-data",
+    "nodeType" : "data-asset",
+    "name" : "RemoteProgressMessage",
+    "description" : "DTO remote progress message with fields: EOM, PACKET_LENGTH, id, type, fragments and 1 more"
+  } ],
+  "relationships" : [ ],
+  "$schema" : "https://calm.finos.org/draft/2025-03/meta/calm.json"
+}

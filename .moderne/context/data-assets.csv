@@ -1,0 +1,2 @@
+Source path,Class name,Simple name,Asset type,Description,Fields
+src/main/java/org/openrewrite/polyglot/RemoteProgressMessage.java,org.openrewrite.polyglot.RemoteProgressMessage,RemoteProgressMessage,DTO,"DTO remote progress message with fields: EOM, PACKET_LENGTH, id, type, fragments and 1 more","EOM, PACKET_LENGTH, id, type, fragments, fragmentTotal"
