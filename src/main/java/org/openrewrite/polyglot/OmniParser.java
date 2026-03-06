@@ -165,7 +165,9 @@ public class OmniParser implements Parser {
                         } else if ((mode.equals(FileMode.EXECUTABLE_FILE) || mode.equals(FileMode.REGULAR_FILE)) &&
                                 !workingTreeIterator.isEntryIgnored() &&
                                 !isExcluded(path, rootDir) &&
-                                isWithinSizeThreshold(workingTreeIterator.getEntryContentLength())) {
+                                // Use getEntryLength() (stat-based) instead of getEntryContentLength()
+                                // which reads the entire file through jgit's filter pipeline.
+                                isWithinSizeThreshold(workingTreeIterator.getEntryLength())) {
                             for (Parser parser : parsers) {
                                 if (parser.accept(path)) {
                                     accepted.add(path);
