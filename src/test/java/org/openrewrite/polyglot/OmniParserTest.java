@@ -56,6 +56,8 @@ class OmniParserTest {
         touch(repo.resolve("file.xml"));
         mkdirs(repo.resolve("folder").toFile());
         touch(repo.resolve("folder/fileinfolder.xml"));
+        // root should be ignored
+        repo.resolve("folder/..");
         touch(repo.resolve("newfile.xml"));
         mkdirs(repo.resolve(".gradle").toFile());
         touch(repo.resolve(".gradle/foo.yml"));
@@ -65,6 +67,7 @@ class OmniParserTest {
 
         mkdirs(repo.resolve("build").toFile());
         touch(repo.resolve("ignored_directory_file.xml"));
+
 
         if (gitRepo) {
             initGit(repo);
