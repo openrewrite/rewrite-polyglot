@@ -65,8 +65,6 @@ class OmniParserTest {
 
         mkdirs(repo.resolve("build").toFile());
         touch(repo.resolve("ignored_directory_file.xml"));
-
-
         if (gitRepo) {
             initGit(repo);
 
