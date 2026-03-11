@@ -56,8 +56,6 @@ class OmniParserTest {
         touch(repo.resolve("file.xml"));
         mkdirs(repo.resolve("folder").toFile());
         touch(repo.resolve("folder/fileinfolder.xml"));
-        // root should be ignored
-        repo.resolve("folder/..");
         touch(repo.resolve("newfile.xml"));
         mkdirs(repo.resolve(".gradle").toFile());
         touch(repo.resolve(".gradle/foo.yml"));
@@ -99,6 +97,9 @@ class OmniParserTest {
 
         assertThat(parser.acceptedPaths(repo, repo.resolve("folder")))
           .containsExactlyInAnyOrder(repo.resolve("folder/fileinfolder.xml"));
+
+        // root should be ignored
+        parser.acceptedPaths(repo, repo.resolve("folder/.."));
     }
 
     /**
