@@ -15,7 +15,9 @@
  */
 package org.openrewrite.polyglot;
 
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -26,6 +28,7 @@ import java.util.*;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 class RemoteProgressMessage {
     private static final String EOM = "__EOM__";
     private static final int PACKET_LENGTH = 128;
@@ -38,10 +41,6 @@ class RemoteProgressMessage {
 
     private final Map<Integer, String> fragments = new TreeMap<>();
     private int fragmentTotal = Integer.MAX_VALUE;
-
-    RemoteProgressMessage(UUID id) {
-        this.id = id;
-    }
 
     public @Nullable String getMessage() {
         return fragments.isEmpty() ? null : String.join("", fragments.values());
