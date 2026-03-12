@@ -65,7 +65,6 @@ class OmniParserTest {
 
         mkdirs(repo.resolve("build").toFile());
         touch(repo.resolve("ignored_directory_file.xml"));
-
         if (gitRepo) {
             initGit(repo);
 
@@ -96,6 +95,9 @@ class OmniParserTest {
 
         assertThat(parser.acceptedPaths(repo, repo.resolve("folder")))
           .containsExactlyInAnyOrder(repo.resolve("folder/fileinfolder.xml"));
+
+        // root should be ignored
+        parser.acceptedPaths(repo, repo.resolve("folder/.."));
     }
 
     /**

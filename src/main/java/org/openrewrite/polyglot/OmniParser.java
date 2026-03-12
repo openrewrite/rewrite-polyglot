@@ -156,7 +156,9 @@ public class OmniParser implements Parser {
                 // searchDir is exactly the same as rootDir
                 if (!rootDir.equals(searchDir)) {
                     String relativePath = separatorsToUnix(rootDir.relativize(searchDir).toString());
-                    walk.setFilter(PathFilter.create(relativePath));
+                    if (!relativePath.isEmpty()) {
+                        walk.setFilter(PathFilter.create(relativePath));
+                    }
                 }
                 while (walk.next()) {
                     FileTreeIterator workingTreeIterator = walk.getTree(0, FileTreeIterator.class);
