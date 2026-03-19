@@ -27,6 +27,7 @@ import org.openrewrite.gradle.GradleParser;
 import org.openrewrite.groovy.GroovyParser;
 import org.openrewrite.hcl.HclParser;
 import org.openrewrite.jgit.api.Git;
+import org.openrewrite.jgit.dircache.DirCacheIterator;
 import org.openrewrite.jgit.lib.FileMode;
 import org.openrewrite.jgit.lib.Repository;
 import org.openrewrite.jgit.treewalk.FileTreeIterator;
@@ -143,7 +144,13 @@ public class OmniParser implements Parser {
         Repository repository = getRepository(rootDir);
         if (repository != null) {
             try (TreeWalk walk = new TreeWalk(repository)) {
-                walk.addTree(new FileTreeIterator(repository));
+                FileTreeIterator fileTreeIterator = new FileTreeIterator(repository);
+                walk.addTree(fileTreeIterator);
+                walk.addTree(new DirCacheIterator(repository.readDirCache()));
+                // Link the FileTreeIterator to the DirCacheIterator so that
+                // FileTreeIterator.createSubtreeIterator() can check the index
+                // before skipping ignored directories containing tracked files.
+                fileTreeIterator.setDirCacheIterator(walk, 1);
                 // We use git for walking the file tree, and we should confine the walk to searchDir only
                 // jgit does not support empty path filter, so we refrain from adding a filter when
                 // searchDir is exactly the same as rootDir
@@ -154,27 +161,31 @@ public class OmniParser implements Parser {
                     }
                 }
                 while (walk.next()) {
-                    for (int i = 0; i < walk.getTreeCount(); i++) {
-                        FileTreeIterator workingTreeIterator = walk.getTree(i, FileTreeIterator.class);
-                        String pathString = workingTreeIterator.getEntryPathString();
-                        Path path = rootDir.resolve(pathString);
-                        FileMode mode = workingTreeIterator.getEntryFileMode();
-                        if (mode.equals(FileMode.TREE) &&
-                                !isExcluded(path, rootDir) &&
-                                !DEFAULT_IGNORED_DIRECTORIES.contains(path.getFileName().toString()) &&
-                                !workingTreeIterator.isEntryIgnored()) {
-                            walk.enterSubtree();
-                        } else if ((mode.equals(FileMode.EXECUTABLE_FILE) || mode.equals(FileMode.REGULAR_FILE)) &&
-                                !workingTreeIterator.isEntryIgnored() &&
-                                !isExcluded(path, rootDir) &&
-                                // Use getEntryLength() (stat-based) instead of getEntryContentLength()
-                                // which reads the entire file through jgit's filter pipeline.
-                                isWithinSizeThreshold(workingTreeIterator.getEntryLength())) {
-                            for (Parser parser : parsers) {
-                                if (parser.accept(path)) {
-                                    accepted.add(path);
-                                    break;
-                                }
+                    FileTreeIterator workingTreeIterator = walk.getTree(0, FileTreeIterator.class);
+                    if (workingTreeIterator == null) {
+                        continue;
+                    }
+                    DirCacheIterator dirCacheIterator = walk.getTree(1, DirCacheIterator.class);
+                    String pathString = workingTreeIterator.getEntryPathString();
+                    Path path = rootDir.resolve(pathString);
+                    FileMode mode = workingTreeIterator.getEntryFileMode();
+                    // Only treat as ignored if it matches gitignore AND is not tracked in the index
+                    boolean isIgnored = workingTreeIterator.isEntryIgnored() && dirCacheIterator == null;
+                    if (mode.equals(FileMode.TREE) &&
+                            !isExcluded(path, rootDir) &&
+                            !DEFAULT_IGNORED_DIRECTORIES.contains(path.getFileName().toString()) &&
+                            !isIgnored) {
+                        walk.enterSubtree();
+                    } else if ((mode.equals(FileMode.EXECUTABLE_FILE) || mode.equals(FileMode.REGULAR_FILE)) &&
+                            !isIgnored &&
+                            !isExcluded(path, rootDir) &&
+                            // Use getEntryLength() (stat-based) instead of getEntryContentLength()
+                            // which reads the entire file through jgit's filter pipeline.
+                            isWithinSizeThreshold(workingTreeIterator.getEntryLength())) {
+                        for (Parser parser : parsers) {
+                            if (parser.accept(path)) {
+                                accepted.add(path);
+                                break;
                             }
                         }
                     }
