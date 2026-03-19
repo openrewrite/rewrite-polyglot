@@ -65,6 +65,7 @@ class OmniParserTest {
 
         mkdirs(repo.resolve("build").toFile());
         touch(repo.resolve("ignored_directory_file.xml"));
+
         if (gitRepo) {
             initGit(repo);
 
@@ -95,9 +96,39 @@ class OmniParserTest {
 
         assertThat(parser.acceptedPaths(repo, repo.resolve("folder")))
           .containsExactlyInAnyOrder(repo.resolve("folder/fileinfolder.xml"));
+    }
 
-        // root should be ignored
-        parser.acceptedPaths(repo, repo.resolve("folder/.."));
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void acceptedPathsWithUnnormalizedSearchDir(boolean gitRepo) throws Exception {
+        touch(repo.resolve("file.xml"));
+        mkdirs(repo.resolve("folder/subfolder").toFile());
+        touch(repo.resolve("folder/fileinfolder.xml"));
+
+        if (gitRepo) {
+            initGit(repo);
+        }
+
+        OmniParser parser = OmniParser.builder(OmniParser.defaultResourceParsers()).build();
+
+        List<Path> rootPaths = normalized(parser.acceptedPaths(repo));
+
+        // All resolve back to root — should return same files as acceptedPaths(repo, repo)
+        assertThat(normalized(parser.acceptedPaths(repo, repo.resolve("folder/.."))))
+          .containsExactlyInAnyOrderElementsOf(rootPaths);
+        assertThat(normalized(parser.acceptedPaths(repo, repo.resolve("."))))
+          .containsExactlyInAnyOrderElementsOf(rootPaths);
+        assertThat(normalized(parser.acceptedPaths(repo, repo.resolve("folder/subfolder/../.."))))
+          .containsExactlyInAnyOrderElementsOf(rootPaths);
+
+        // Resolves to "folder" — should return same as explicit folder search
+        List<Path> folderPaths = normalized(parser.acceptedPaths(repo, repo.resolve("folder")));
+        assertThat(normalized(parser.acceptedPaths(repo, repo.resolve("folder/../folder"))))
+          .containsExactlyInAnyOrderElementsOf(folderPaths);
+    }
+
+    private static List<Path> normalized(List<Path> paths) {
+        return paths.stream().map(Path::normalize).toList();
     }
 
     /**
