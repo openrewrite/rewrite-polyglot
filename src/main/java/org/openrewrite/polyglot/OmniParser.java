@@ -136,7 +136,8 @@ public class OmniParser implements Parser {
     }
 
     public List<Path> acceptedPaths(Path rootDir, Path searchDir) {
-        if (!Files.exists(searchDir)) {
+        Path normalizedSearchDir = searchDir.normalize();
+        if (!Files.exists(normalizedSearchDir)) {
             return emptyList();
         }
 
@@ -151,14 +152,10 @@ public class OmniParser implements Parser {
                 // FileTreeIterator.createSubtreeIterator() can check the index
                 // before skipping ignored directories containing tracked files.
                 fileTreeIterator.setDirCacheIterator(walk, 1);
-                // We use git for walking the file tree, and we should confine the walk to searchDir only
-                // jgit does not support empty path filter, so we refrain from adding a filter when
-                // searchDir is exactly the same as rootDir
-                if (!rootDir.equals(searchDir)) {
-                    String relativePath = separatorsToUnix(rootDir.relativize(searchDir).toString());
-                    if (!relativePath.isEmpty()) {
-                        walk.setFilter(PathFilter.create(relativePath));
-                    }
+                // Confine the tree walk to searchDir; skip the filter when searchDir is rootDir
+                if (!rootDir.equals(normalizedSearchDir)) {
+                    String relativePath = separatorsToUnix(rootDir.relativize(normalizedSearchDir).toString());
+                    walk.setFilter(PathFilter.create(relativePath));
                 }
                 while (walk.next()) {
                     FileTreeIterator workingTreeIterator = walk.getTree(0, FileTreeIterator.class);
@@ -195,11 +192,11 @@ public class OmniParser implements Parser {
             }
         } else {
             try {
-                Files.walkFileTree(searchDir, new SimpleFileVisitor<Path>() {
+                Files.walkFileTree(normalizedSearchDir, new SimpleFileVisitor<Path>() {
                     @Override
                     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                         return isExcluded(dir, rootDir) ||
-                                isIgnoredDirectory(dir, searchDir) ?
+                                isIgnoredDirectory(dir, normalizedSearchDir) ?
                                 FileVisitResult.SKIP_SUBTREE :
                                 FileVisitResult.CONTINUE;
                     }
