@@ -22,10 +22,12 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Parser;
 import org.openrewrite.SourceFile;
+import org.openrewrite.docker.DockerParser;
 import org.openrewrite.gradle.GradleParser;
 import org.openrewrite.groovy.GroovyParser;
 import org.openrewrite.hcl.HclParser;
 import org.openrewrite.jgit.api.Git;
+import org.openrewrite.jgit.dircache.DirCacheIterator;
 import org.openrewrite.jgit.lib.FileMode;
 import org.openrewrite.jgit.lib.Repository;
 import org.openrewrite.jgit.treewalk.FileTreeIterator;
@@ -108,6 +110,7 @@ public class OmniParser implements Parser {
                 new PropertiesParser(),
                 new ProtoParser(),
                 new TomlParser(),
+                new DockerParser(),
                 HclParser.builder().build(),
                 GroovyParser.builder().build(),
                 GradleParser.builder().build()
@@ -133,7 +136,8 @@ public class OmniParser implements Parser {
     }
 
     public List<Path> acceptedPaths(Path rootDir, Path searchDir) {
-        if (!Files.exists(searchDir)) {
+        Path normalizedSearchDir = searchDir.normalize();
+        if (!Files.exists(normalizedSearchDir)) {
             return emptyList();
         }
 
@@ -141,34 +145,44 @@ public class OmniParser implements Parser {
         Repository repository = getRepository(rootDir);
         if (repository != null) {
             try (TreeWalk walk = new TreeWalk(repository)) {
-                walk.addTree(new FileTreeIterator(repository));
-                // We use git for walking the file tree, and we should confine the walk to searchDir only
-                // jgit does not support empty path filter, so we refrain from adding a filter when
-                // searchDir is exactly the same as rootDir
-                if (!rootDir.equals(searchDir)) {
-                    String relativePath = separatorsToUnix(rootDir.relativize(searchDir).toString());
+                FileTreeIterator fileTreeIterator = new FileTreeIterator(repository);
+                walk.addTree(fileTreeIterator);
+                walk.addTree(new DirCacheIterator(repository.readDirCache()));
+                // Link the FileTreeIterator to the DirCacheIterator so that
+                // FileTreeIterator.createSubtreeIterator() can check the index
+                // before skipping ignored directories containing tracked files.
+                fileTreeIterator.setDirCacheIterator(walk, 1);
+                // Confine the tree walk to searchDir; skip the filter when searchDir is rootDir
+                if (!rootDir.equals(normalizedSearchDir)) {
+                    String relativePath = separatorsToUnix(rootDir.relativize(normalizedSearchDir).toString());
                     walk.setFilter(PathFilter.create(relativePath));
                 }
                 while (walk.next()) {
-                    for (int i = 0; i < walk.getTreeCount(); i++) {
-                        FileTreeIterator workingTreeIterator = walk.getTree(i, FileTreeIterator.class);
-                        String pathString = workingTreeIterator.getEntryPathString();
-                        Path path = rootDir.resolve(pathString);
-                        FileMode mode = workingTreeIterator.getEntryFileMode();
-                        if (mode.equals(FileMode.TREE) &&
-                                !isExcluded(path, rootDir) &&
-                                !DEFAULT_IGNORED_DIRECTORIES.contains(path.getFileName().toString()) &&
-                                !workingTreeIterator.isEntryIgnored()) {
-                            walk.enterSubtree();
-                        } else if ((mode.equals(FileMode.EXECUTABLE_FILE) || mode.equals(FileMode.REGULAR_FILE)) &&
-                                !workingTreeIterator.isEntryIgnored() &&
-                                !isExcluded(path, rootDir) &&
-                                isWithinSizeThreshold(workingTreeIterator.getEntryContentLength())) {
-                            for (Parser parser : parsers) {
-                                if (parser.accept(path)) {
-                                    accepted.add(path);
-                                    break;
-                                }
+                    FileTreeIterator workingTreeIterator = walk.getTree(0, FileTreeIterator.class);
+                    if (workingTreeIterator == null) {
+                        continue;
+                    }
+                    DirCacheIterator dirCacheIterator = walk.getTree(1, DirCacheIterator.class);
+                    String pathString = workingTreeIterator.getEntryPathString();
+                    Path path = rootDir.resolve(pathString);
+                    FileMode mode = workingTreeIterator.getEntryFileMode();
+                    // Only treat as ignored if it matches gitignore AND is not tracked in the index
+                    boolean isIgnored = workingTreeIterator.isEntryIgnored() && dirCacheIterator == null;
+                    if (mode.equals(FileMode.TREE) &&
+                            !isExcluded(path, rootDir) &&
+                            !DEFAULT_IGNORED_DIRECTORIES.contains(path.getFileName().toString()) &&
+                            !isIgnored) {
+                        walk.enterSubtree();
+                    } else if ((mode.equals(FileMode.EXECUTABLE_FILE) || mode.equals(FileMode.REGULAR_FILE)) &&
+                            !isIgnored &&
+                            !isExcluded(path, rootDir) &&
+                            // Use getEntryLength() (stat-based) instead of getEntryContentLength()
+                            // which reads the entire file through jgit's filter pipeline.
+                            isWithinSizeThreshold(workingTreeIterator.getEntryLength())) {
+                        for (Parser parser : parsers) {
+                            if (parser.accept(path)) {
+                                accepted.add(path);
+                                break;
                             }
                         }
                     }
@@ -178,11 +192,11 @@ public class OmniParser implements Parser {
             }
         } else {
             try {
-                Files.walkFileTree(searchDir, new SimpleFileVisitor<Path>() {
+                Files.walkFileTree(normalizedSearchDir, new SimpleFileVisitor<Path>() {
                     @Override
                     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                         return isExcluded(dir, rootDir) ||
-                                isIgnoredDirectory(dir, searchDir) ?
+                                isIgnoredDirectory(dir, normalizedSearchDir) ?
                                 FileVisitResult.SKIP_SUBTREE :
                                 FileVisitResult.CONTINUE;
                     }

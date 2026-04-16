@@ -81,7 +81,7 @@ class OmniParserTest {
           .build();
 
         List<Path> paths = parser.acceptedPaths(repo);
-        assertThat(paths.stream().map(p -> repo.relativize(p).toString())).contains(
+        assertThat(paths).extracting(p -> repo.relativize(p).toString()).contains(
           "file.xml",
           "newfile.xml",
           separatorsToSystem("folder/fileinfolder.xml")
@@ -96,6 +96,39 @@ class OmniParserTest {
 
         assertThat(parser.acceptedPaths(repo, repo.resolve("folder")))
           .containsExactlyInAnyOrder(repo.resolve("folder/fileinfolder.xml"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void acceptedPathsWithUnnormalizedSearchDir(boolean gitRepo) throws Exception {
+        touch(repo.resolve("file.xml"));
+        mkdirs(repo.resolve("folder/subfolder").toFile());
+        touch(repo.resolve("folder/fileinfolder.xml"));
+
+        if (gitRepo) {
+            initGit(repo);
+        }
+
+        OmniParser parser = OmniParser.builder(OmniParser.defaultResourceParsers()).build();
+
+        List<Path> rootPaths = normalized(parser.acceptedPaths(repo));
+
+        // All resolve back to root — should return same files as acceptedPaths(repo, repo)
+        assertThat(normalized(parser.acceptedPaths(repo, repo.resolve("folder/.."))))
+          .containsExactlyInAnyOrderElementsOf(rootPaths);
+        assertThat(normalized(parser.acceptedPaths(repo, repo.resolve("."))))
+          .containsExactlyInAnyOrderElementsOf(rootPaths);
+        assertThat(normalized(parser.acceptedPaths(repo, repo.resolve("folder/subfolder/../.."))))
+          .containsExactlyInAnyOrderElementsOf(rootPaths);
+
+        // Resolves to "folder" — should return same as explicit folder search
+        List<Path> folderPaths = normalized(parser.acceptedPaths(repo, repo.resolve("folder")));
+        assertThat(normalized(parser.acceptedPaths(repo, repo.resolve("folder/../folder"))))
+          .containsExactlyInAnyOrderElementsOf(folderPaths);
+    }
+
+    private static List<Path> normalized(List<Path> paths) {
+        return paths.stream().map(Path::normalize).toList();
     }
 
     /**
@@ -153,6 +186,59 @@ class OmniParserTest {
         assertThat(paths)
           .contains(Path.of("project/build.gradle"))
           .doesNotContain(Path.of("project/.gradle/foo.yml"));
+    }
+
+    @Test
+    void trackedFilesMatchingGitIgnoreAreNotIgnored() throws Exception {
+        initGit(repo);
+
+        // Create and commit files first
+        Path trackedFile = repo.resolve("tracked.xml");
+        touch(trackedFile);
+        Path trackedInDir = repo.resolve("config/settings.xml");
+        mkdirs(trackedInDir.getParent().toFile());
+        touch(trackedInDir);
+
+        try (Git git = Git.open(repo.toFile())) {
+            git.add().addFilepattern("tracked.xml").addFilepattern("config/settings.xml").call();
+            git.commit().setSign(false).setMessage("add tracked files").call();
+
+            // Now add them to .gitignore (but don't git rm them — they remain tracked)
+            writeString(repo.resolve(".gitignore"), "tracked.xml\nconfig/\n");
+            git.add().addFilepattern(".gitignore").call();
+            git.commit().setSign(false).setMessage("add gitignore").call();
+        }
+
+        OmniParser parser = OmniParser.builder(OmniParser.defaultResourceParsers()).build();
+        List<Path> paths = parser.acceptedPaths(repo);
+        assertThat(paths).extracting(p -> repo.relativize(p).toString()).contains(
+                "tracked.xml",
+                separatorsToSystem("config/settings.xml")
+        );
+    }
+
+    @Test
+    void untrackedFilesMatchingGitIgnoreAreIgnored() throws Exception {
+        initGit(repo);
+
+        // Add .gitignore first
+        writeString(repo.resolve(".gitignore"), "untracked.xml\ntemp/\n");
+        try (Git git = Git.open(repo.toFile())) {
+            git.add().addFilepattern(".gitignore").call();
+            git.commit().setSign(false).setMessage("add gitignore").call();
+        }
+
+        // Create files that are never committed — they should be ignored
+        touch(repo.resolve("untracked.xml"));
+        mkdirs(repo.resolve("temp").toFile());
+        touch(repo.resolve("temp/data.xml"));
+
+        OmniParser parser = OmniParser.builder(OmniParser.defaultResourceParsers()).build();
+        List<Path> paths = parser.acceptedPaths(repo);
+        assertThat(paths).extracting(p -> repo.relativize(p).toString()).doesNotContain(
+                "untracked.xml",
+                separatorsToSystem("temp/data.xml")
+        );
     }
 
     void initGit(Path repositoryPath) {
