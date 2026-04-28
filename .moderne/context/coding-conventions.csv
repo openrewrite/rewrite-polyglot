@@ -1,0 +1,21 @@
+Convention type,Pattern,Example,Frequency,Scope
+naming,set* method naming pattern,setExtraMessage,,project-wide
+imports,Static imports from java.util,java.util.Arrays.asList,,project-wide
+imports,Static imports from java.util.stream,java.util.stream.Collectors.groupingBy,,project-wide
+imports,Static imports from org.openrewrite,org.openrewrite.PathUtils.separatorsToUnix,,project-wide
+naming,UPPER_SNAKE_CASE for constants,NOOP_PARSER,,project-wide
+comments,Methods have Javadoc documentation,defaultResourceParsers,,project-wide
+naming,parse* method naming pattern,parseAll,,project-wide
+naming,get* method naming pattern,getRepository,,project-wide
+naming,is* method naming pattern,isWithinSizeThreshold,,project-wide
+naming,Builder suffix for classes,Builder,,project-wide
+imports,Static imports from java.nio.charset,java.nio.charset.StandardCharsets.UTF_8,,project-wide
+comments,Classes have Javadoc documentation,RemoteException,,project-wide
+naming,Exception suffix for classes,RemoteException,,project-wide
+imports,Static imports from java.nio.file,java.nio.file.Files.writeString,,project-wide
+imports,Static imports from org.assertj.core.api,org.assertj.core.api.Assertions.assertThat,,project-wide
+imports,Static imports from org.openrewrite.jgit.util,org.openrewrite.jgit.util.FileUtils.*,,project-wide
+naming,Test suffix for classes,OmniParserTest,,project-wide
+naming,build* method naming pattern,buildRootDiffersFromRepositoryRoot,,project-wide
+naming,init* method naming pattern,initGit,,project-wide
+imports,Static imports from org.openrewrite.polyglot.RemoteProgressMessage,org.openrewrite.polyglot.RemoteProgressMessage.Type.*,,project-wide

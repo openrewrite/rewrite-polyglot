@@ -1,0 +1,14 @@
+Source path,Class name,Line count,Method count,Field count,WMC,LCOM4,TCC,CBO,Maintainability index
+src/main/java/org/openrewrite/polyglot/NoopProgressBar.java,org.openrewrite.polyglot.NoopProgressBar,28,6,0,6,6,0.0,0,85.27180721441883
+src/main/java/org/openrewrite/polyglot/OmniParser.java,org.openrewrite.polyglot.OmniParser,327,19,8,70,7,0.04093567251461988,48,56.948696970137696
+src/main/java/org/openrewrite/polyglot/ProgressBar.java,org.openrewrite.polyglot.ProgressBar,17,6,0,6,6,0.0,0,89.9990919460724
+src/main/java/org/openrewrite/polyglot/RemoteException.java,org.openrewrite.polyglot.RemoteException,165,9,3,27,4,0.2777777777777778,21,56.01437130966313
+src/main/java/org/openrewrite/polyglot/RemoteProgressBarReceiver.java,org.openrewrite.polyglot.RemoteProgressBarReceiver,108,11,5,23,2,0.4909090909090909,12,65.27128830280505
+src/main/java/org/openrewrite/polyglot/RemoteProgressBarSender.java,org.openrewrite.polyglot.RemoteProgressBarSender,81,10,3,18,2,0.06666666666666667,12,67.92424413846588
+src/main/java/org/openrewrite/polyglot/RemoteProgressMessage.java,org.openrewrite.polyglot.RemoteProgressMessage,123,5,6,17,1,0.3,12,51.70313126376623
+src/main/java/org/openrewrite/polyglot/SourceFileStream.java,org.openrewrite.polyglot.SourceFileStream,40,5,4,6,2,0.6,4,67.89108374173084
+src/test/java/org/openrewrite/polyglot/OmniParserTest.java,org.openrewrite.polyglot.OmniParserTest,218,9,1,14,2,0.4166666666666667,33,50.56291550510296
+src/test/java/org/openrewrite/polyglot/RemoteExceptionTest.java,org.openrewrite.polyglot.RemoteExceptionTest,71,5,0,5,5,0.0,17,58.19766000771229
+src/test/java/org/openrewrite/polyglot/RemoteProgressBarTest.java,org.openrewrite.polyglot.RemoteProgressBarTest,74,8,0,9,8,0.0,16,64.04466991580155
+src/test/java/org/openrewrite/polyglot/RemoteProgressMessageTest.java,org.openrewrite.polyglot.RemoteProgressMessageTest,67,3,0,6,3,0.0,8,52.494444908322194
+src/test/java/org/openrewrite/polyglot/SourceFileStreamTest.java,org.openrewrite.polyglot.SourceFileStreamTest,35,3,0,3,1,0.0,9,60.07888879927142

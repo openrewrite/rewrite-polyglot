@@ -15,3 +15,7 @@ gradle-app.setting
 # gradle/wrapper/gradle-wrapper.properties
 /.idea/
 src/main/typescript
+
+# Moderne CLI
+.moderne/*
+!.moderne/context/
