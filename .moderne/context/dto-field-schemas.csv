@@ -1,0 +1,5 @@
+Source path,Owner class FQN,Field name,Serialized name,Serialized name source,Type FQN,Type resolution,Is collection,Is map,Is optional,Format,Required,Validations JSON,Example value
+src/main/java/org/openrewrite/polyglot/RemoteProgressMessage.java,org.openrewrite.polyglot.RemoteProgressMessage,id,id,java-name,java.util.UUID,resolved,false,false,false,uuid,false,{},
+src/main/java/org/openrewrite/polyglot/RemoteProgressMessage.java,org.openrewrite.polyglot.RemoteProgressMessage,type,type,java-name,org.openrewrite.polyglot.RemoteProgressMessage$Type,resolved,false,false,false,,false,{},
+src/main/java/org/openrewrite/polyglot/RemoteProgressMessage.java,org.openrewrite.polyglot.RemoteProgressMessage,fragments,fragments,java-name,java.lang.String,resolved,false,true,false,,false,{},
+src/main/java/org/openrewrite/polyglot/RemoteProgressMessage.java,org.openrewrite.polyglot.RemoteProgressMessage,fragmentTotal,fragmentTotal,java-name,int,resolved,false,false,false,int32,true,{},

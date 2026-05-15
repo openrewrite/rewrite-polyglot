@@ -25,6 +25,7 @@ Do NOT stop after reading a single context file when others are clearly relevant
 
 | Context | Description | Details |
 |---------|-------------|--------|
+| Api Contracts | Endpoint contracts, DTO schemas, parameters, exception handlers, and fixture examples | [`api-contracts.md`](.moderne/context/api-contracts.md) |
 | Architecture | FINOS CALM architecture diagram | [`architecture.md`](.moderne/context/architecture.md) |
 | Class Quality Metrics | Per-class cohesion, coupling, and complexity measurements | [`class-quality-metrics.md`](.moderne/context/class-quality-metrics.md) |
 | Code Smells | Detected design problems with severity and evidence | [`code-smells.md`](.moderne/context/code-smells.md) |
