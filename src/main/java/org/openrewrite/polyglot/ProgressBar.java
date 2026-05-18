@@ -32,4 +32,20 @@ public interface ProgressBar extends AutoCloseable {
     ProgressBar setExtraMessage(String extraMessage);
 
     ProgressBar setMax(int max);
+
+    /**
+     * Set the canceled state of the progress bar.
+     * @param canceled true if the operation has been canceled
+     */
+    default void setCanceled(boolean canceled) {
+        // Default no-op implementation for backward compatibility
+    }
+
+    /**
+     * Check if the progress bar has been marked as canceled.
+     * @return true if the operation has been canceled
+     */
+    default boolean isCanceled() {
+        return false;
+    }
 }
