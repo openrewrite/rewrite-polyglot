@@ -27,7 +27,7 @@ Gradle,org.openrewrite,rewrite-polyglot,2.11.0-SNAPSHOT,org.hdrhistogram,HdrHist
 Gradle,org.openrewrite,rewrite-polyglot,2.11.0-SNAPSHOT,org.openrewrite,rewrite-java-lombok,8.82.0-SNAPSHOT,false,
 Gradle,org.openrewrite,rewrite-polyglot,2.11.0-SNAPSHOT,org.projectlombok,lombok,1.18.46,false,
 Gradle,org.openrewrite,rewrite-polyglot,2.11.0-SNAPSHOT,io.github.classgraph,classgraph,4.8.184,false,
-Gradle,org.openrewrite,rewrite-polyglot,2.11.0-SNAPSHOT,org.ow2.asm,asm,9.9.1,false,
+Gradle,org.openrewrite,rewrite-polyglot,2.11.0-SNAPSHOT,org.ow2.asm,asm,9.10,false,
 Gradle,org.openrewrite,rewrite-polyglot,2.11.0-SNAPSHOT,org.openrewrite,rewrite-java-21,8.82.0-SNAPSHOT,true,
 Gradle,org.openrewrite,rewrite-polyglot,2.11.0-SNAPSHOT,org.openrewrite,rewrite-groovy,8.82.0-SNAPSHOT,true,
 Gradle,org.openrewrite,rewrite-polyglot,2.11.0-SNAPSHOT,org.openrewrite,rewrite-gradle,8.82.0-SNAPSHOT,true,
