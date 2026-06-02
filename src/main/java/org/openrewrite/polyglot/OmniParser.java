@@ -26,6 +26,7 @@ import org.openrewrite.docker.DockerParser;
 import org.openrewrite.gradle.GradleParser;
 import org.openrewrite.groovy.GroovyParser;
 import org.openrewrite.hcl.HclParser;
+import org.openrewrite.java.internal.JavaTypeFactory;
 import org.openrewrite.jgit.api.Git;
 import org.openrewrite.jgit.dircache.DirCacheIterator;
 import org.openrewrite.jgit.lib.FileMode;
@@ -101,8 +102,26 @@ public class OmniParser implements Parser {
      * what the division of labor should be between PlainText and the Quark parsers, if any.
      */
     public static List<Parser> defaultResourceParsers() {
+        return defaultResourceParsers(null);
+    }
+
+    /**
+     * Like {@link #defaultResourceParsers()} but routes {@link GroovyParser} and
+     * {@link GradleParser} through the supplied {@code typeFactory}. Callers that
+     * also feed type-producing parsers (Java, Kotlin, ...) into the same OmniParser
+     * must pass the shared factory here, otherwise the resource-side Groovy/Gradle
+     * parsers mint a parallel JavaType graph that collides with the typed parsers'
+     * graph when both write into the same downstream type table.
+     */
+    public static List<Parser> defaultResourceParsers(@Nullable JavaTypeFactory typeFactory) {
         // do not assign to static field, or class initialization on OmniParser will
         // cause these parsers to get built, potentially triggering undesirable side effects
+        GroovyParser.Builder groovy = GroovyParser.builder();
+        GradleParser.Builder gradle = GradleParser.builder();
+        if (typeFactory != null) {
+            groovy.typeFactory(typeFactory);
+            gradle.typeFactory(typeFactory);
+        }
         return new ArrayList<>(asList(
                 new JsonParser(),
                 new XmlParser(),
@@ -112,8 +131,8 @@ public class OmniParser implements Parser {
                 new TomlParser(),
                 new DockerParser(),
                 HclParser.builder().build(),
-                GroovyParser.builder().build(),
-                GradleParser.builder().build()
+                groovy.build(),
+                gradle.build()
         ));
     }
 
