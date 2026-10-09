@@ -1,14 +1,14 @@
 Source path,Class name,Line count,Method count,Field count,WMC,LCOM4,TCC,CBO,Maintainability index
-src/test/java/org/openrewrite/polyglot/OmniParserTest.java,org.openrewrite.polyglot.OmniParserTest,218,9,1,14,2,0.4166666666666667,33,50.56291550510296
-src/test/java/org/openrewrite/polyglot/RemoteExceptionTest.java,org.openrewrite.polyglot.RemoteExceptionTest,71,5,0,5,5,0.0,17,58.19766000771229
-src/test/java/org/openrewrite/polyglot/RemoteProgressBarTest.java,org.openrewrite.polyglot.RemoteProgressBarTest,74,8,0,9,8,0.0,16,64.04466991580155
-src/test/java/org/openrewrite/polyglot/RemoteProgressMessageTest.java,org.openrewrite.polyglot.RemoteProgressMessageTest,67,3,0,6,3,0.0,8,52.494444908322194
-src/test/java/org/openrewrite/polyglot/SourceFileStreamTest.java,org.openrewrite.polyglot.SourceFileStreamTest,35,3,0,3,1,0.0,9,60.07888879927142
-src/main/java/org/openrewrite/polyglot/NoopProgressBar.java,org.openrewrite.polyglot.NoopProgressBar,28,6,0,6,6,0.0,0,85.27180721441883
-src/main/java/org/openrewrite/polyglot/OmniParser.java,org.openrewrite.polyglot.OmniParser,345,20,8,72,7,0.03684210526315789,48,56.98935363712174
-src/main/java/org/openrewrite/polyglot/ProgressBar.java,org.openrewrite.polyglot.ProgressBar,17,6,0,6,6,0.0,0,89.9990919460724
-src/main/java/org/openrewrite/polyglot/RemoteException.java,org.openrewrite.polyglot.RemoteException,165,9,3,27,4,0.2777777777777778,21,56.01437130966313
-src/main/java/org/openrewrite/polyglot/RemoteProgressBarReceiver.java,org.openrewrite.polyglot.RemoteProgressBarReceiver,108,11,5,23,2,0.4909090909090909,12,65.27128830280505
-src/main/java/org/openrewrite/polyglot/RemoteProgressBarSender.java,org.openrewrite.polyglot.RemoteProgressBarSender,81,10,3,18,2,0.06666666666666667,12,67.92424413846588
-src/main/java/org/openrewrite/polyglot/RemoteProgressMessage.java,org.openrewrite.polyglot.RemoteProgressMessage,123,5,6,17,1,0.3,12,51.70313126376623
-src/main/java/org/openrewrite/polyglot/SourceFileStream.java,org.openrewrite.polyglot.SourceFileStream,40,5,4,6,2,0.6,4,67.89108374173084
+src/main/java/org/openrewrite/polyglot/NoopProgressBar.java,org.openrewrite.polyglot.NoopProgressBar,27,6,0,6,6,0.0,0,85.6163427907745
+src/main/java/org/openrewrite/polyglot/OmniParser.java,org.openrewrite.polyglot.OmniParser,328,20,8,72,7,0.03684210526315789,48,57.468066561147985
+src/main/java/org/openrewrite/polyglot/ProgressBar.java,org.openrewrite.polyglot.ProgressBar,16,6,0,6,6,0.0,0,90.57343046854389
+src/main/java/org/openrewrite/polyglot/RemoteException.java,org.openrewrite.polyglot.RemoteException,160,9,3,27,4,0.2777777777777778,21,56.30589228650606
+src/main/java/org/openrewrite/polyglot/RemoteProgressBarReceiver.java,org.openrewrite.polyglot.RemoteProgressBarReceiver,107,11,5,23,2,0.4909090909090909,12,65.35941623329012
+src/main/java/org/openrewrite/polyglot/RemoteProgressBarSender.java,org.openrewrite.polyglot.RemoteProgressBarSender,80,10,3,18,2,0.06666666666666667,12,68.04193117003116
+src/main/java/org/openrewrite/polyglot/RemoteProgressMessage.java,org.openrewrite.polyglot.RemoteProgressMessage,116,5,6,17,1,0.3,12,52.25823387260252
+src/main/java/org/openrewrite/polyglot/SourceFileStream.java,org.openrewrite.polyglot.SourceFileStream,39,5,4,6,2,0.6,4,68.13093665947673
+src/test/java/org/openrewrite/polyglot/OmniParserTest.java,org.openrewrite.polyglot.OmniParserTest,213,9,1,14,2,0.4166666666666667,33,50.78273242480504
+src/test/java/org/openrewrite/polyglot/RemoteExceptionTest.java,org.openrewrite.polyglot.RemoteExceptionTest,70,5,0,5,5,0.0,17,58.33204076026768
+src/test/java/org/openrewrite/polyglot/RemoteProgressBarTest.java,org.openrewrite.polyglot.RemoteProgressBarTest,73,8,0,9,8,0.0,16,64.1735655668563
+src/test/java/org/openrewrite/polyglot/RemoteProgressMessageTest.java,org.openrewrite.polyglot.RemoteProgressMessageTest,66,3,0,6,3,0.0,8,52.63690900967047
+src/test/java/org/openrewrite/polyglot/SourceFileStreamTest.java,org.openrewrite.polyglot.SourceFileStreamTest,34,3,0,3,1,0.0,9,60.353507569649615
