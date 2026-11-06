@@ -19,8 +19,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.DatagramSocket;
-import java.net.SocketException;
+import java.net.*;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -36,7 +35,11 @@ public class RemoteProgressBarReceiver implements ProgressBar {
     private final ProgressBar delegate;
     private final DatagramSocket socket;
     private volatile boolean closed;
-    private final AtomicReference<String> thrown = new AtomicReference<>();
+    private final AtomicReference<@Nullable String> thrown = new AtomicReference<>();
+    private volatile boolean canceled = false;
+    private @Nullable InetAddress lastSenderAddress;
+    private int lastSenderPort;
+    private volatile boolean cancelNotificationSent = false;
 
     public RemoteProgressBarReceiver(ProgressBar delegate) {
         try {
@@ -61,28 +64,47 @@ public class RemoteProgressBarReceiver implements ProgressBar {
         };
         try {
             while (!closed) {
-                RemoteProgressMessage message = RemoteProgressMessage.receive(socket, incompleteMessages);
-                if (message == null) {
-                    continue;
-                }
-                switch (message.getType()) {
-                    case Exception:
-                        if (message.getMessage() != null) {
-                            thrown.set(message.getMessage());
-                        }
-                        break;
-                    case IntermediateResult:
-                        delegate.intermediateResult(message.getMessage());
-                        break;
-                    case Step:
-                        delegate.step();
-                        break;
-                    case SetExtraMessage:
-                        delegate.setExtraMessage(requireNonNull(message.getMessage()));
-                        break;
-                    case SetMax:
-                        delegate.setMax(Integer.parseInt(requireNonNull(message.getMessage())));
-                        break;
+                // Receive with packet info to get sender details
+                byte[] buf = new byte[128];
+                DatagramPacket packet = new DatagramPacket(buf, 128);
+                try {
+                    socket.receive(packet);
+
+                    // Store sender info for sending cancel status back
+                    lastSenderAddress = packet.getAddress();
+                    lastSenderPort = packet.getPort();
+
+                    RemoteProgressMessage message = RemoteProgressMessage.read(buf, packet.getLength(), incompleteMessages);
+                    if (message == null) {
+                        continue;
+                    }
+                    switch (message.getType()) {
+                        case Exception:
+                            if (message.getMessage() != null) {
+                                thrown.set(message.getMessage());
+                            }
+                            break;
+                        case IntermediateResult:
+                            delegate.intermediateResult(message.getMessage());
+                            break;
+                        case Step:
+                            delegate.step();
+                            break;
+                        case SetExtraMessage:
+                            delegate.setExtraMessage(requireNonNull(message.getMessage()));
+                            break;
+                        case SetMax:
+                            delegate.setMax(Integer.parseInt(requireNonNull(message.getMessage())));
+                            break;
+                    }
+
+                    // Only send cancel status if we haven't already notified about cancellation
+                    if ((canceled || delegate.isCanceled()) && !cancelNotificationSent) {
+                        sendCancelStatus();
+                        cancelNotificationSent = true;
+                    }
+                } catch (SocketTimeoutException ignored) {
+                    // No message received, continue
                 }
             }
         } catch (IOException e) {
@@ -135,5 +157,49 @@ public class RemoteProgressBarReceiver implements ProgressBar {
         if (t != null) {
             throw RemoteException.decode(t);
         }
+    }
+
+    private void sendCancelStatus() {
+        if (lastSenderAddress != null && lastSenderPort > 0) {
+            try {
+                // Send a cancel notification message
+                String cancelMessage = "CANCEL:true";
+                byte[] cancelBytes = cancelMessage.getBytes();
+                DatagramPacket cancelPacket = new DatagramPacket(
+                    cancelBytes,
+                    cancelBytes.length,
+                    lastSenderAddress,
+                    lastSenderPort
+                );
+
+                // Try a few times to ensure delivery (since we only send once per cancellation)
+                for (int i = 0; i < 3; i++) {
+                    socket.send(cancelPacket);
+                    if (i < 2) {
+                        Thread.sleep(10); // Small delay between retries
+                    }
+                }
+            } catch (IOException | InterruptedException ignored) {
+                // Ignore failures when sending cancel status
+            }
+        }
+    }
+
+    @Override
+    public void setCanceled(boolean canceled) {
+        boolean wasNotCanceled = !this.canceled;
+        this.canceled = canceled;
+        delegate.setCanceled(canceled);
+
+        // If we just became canceled and haven't sent notification yet, send it
+        if (wasNotCanceled && canceled && !cancelNotificationSent) {
+            sendCancelStatus();
+            cancelNotificationSent = true;
+        }
+    }
+
+    @Override
+    public boolean isCanceled() {
+        return canceled || delegate.isCanceled();
     }
 }
