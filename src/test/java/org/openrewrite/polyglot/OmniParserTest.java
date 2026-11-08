@@ -129,9 +129,11 @@ class OmniParserTest {
 
     @Test
     void acceptedPathsUnderSymlinkedRootWithoutGitRepository(@TempDir Path links) throws Exception {
-        touch(repo.resolve("file.xml"));
+        // "build" is an ignored directory name, so directories must be judged by their path under the link.
+        Path real = Files.createDirectories(links.resolve("build/repo"));
+        touch(real.resolve("file.xml"));
         Path link = links.resolve("repo");
-        createSymLink(link.toFile(), repo.toString());
+        createSymLink(link.toFile(), real.toString());
 
         assertThat(OmniParser.builder(OmniParser.defaultResourceParsers()).build().acceptedPaths(link))
           .containsExactly(link.resolve("file.xml"));
