@@ -127,6 +127,20 @@ class OmniParserTest {
           .containsExactlyInAnyOrderElementsOf(folderPaths);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void acceptedPathsUnderSymlinkedRoot(boolean gitRepo, @TempDir Path links) throws Exception {
+        touch(repo.resolve("file.xml"));
+        if (gitRepo) {
+            initGit(repo);
+        }
+        Path link = links.resolve("repo");
+        createSymLink(link.toFile(), repo.toString());
+
+        assertThat(OmniParser.builder(OmniParser.defaultResourceParsers()).build().acceptedPaths(link))
+          .containsExactly(link.resolve("file.xml"));
+    }
+
     private static List<Path> normalized(List<Path> paths) {
         return paths.stream().map(Path::normalize).toList();
     }

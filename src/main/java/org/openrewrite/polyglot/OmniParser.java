@@ -211,9 +211,13 @@ public class OmniParser implements Parser {
             }
         } else {
             try {
-                Files.walkFileTree(normalizedSearchDir, new SimpleFileVisitor<Path>() {
+                // Files.walkFileTree treats a start path that is a symbolic link as a file, so walk
+                // the real directory and report each visited path under searchDir as the caller gave it.
+                Path realSearchDir = normalizedSearchDir.toRealPath();
+                Files.walkFileTree(realSearchDir, new SimpleFileVisitor<Path>() {
                     @Override
-                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    public FileVisitResult preVisitDirectory(Path realDir, BasicFileAttributes attrs) {
+                        Path dir = normalizedSearchDir.resolve(realSearchDir.relativize(realDir));
                         return isExcluded(dir, rootDir) ||
                                 isIgnoredDirectory(dir, normalizedSearchDir) ?
                                 FileVisitResult.SKIP_SUBTREE :
@@ -221,7 +225,8 @@ public class OmniParser implements Parser {
                     }
 
                     @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    public FileVisitResult visitFile(Path realFile, BasicFileAttributes attrs) {
+                        Path file = normalizedSearchDir.resolve(realSearchDir.relativize(realFile));
                         if (!attrs.isOther() && !attrs.isSymbolicLink() &&
                                 !isExcluded(file, rootDir) &&
                                 isWithinSizeThreshold(attrs.size())
