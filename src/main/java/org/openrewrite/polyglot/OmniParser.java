@@ -211,9 +211,16 @@ public class OmniParser implements Parser {
             }
         } else {
             try {
-                Files.walkFileTree(normalizedSearchDir, new SimpleFileVisitor<Path>() {
+                // Files.walkFileTree treats a start path that is a symbolic link as a file. A symlinked
+                // root is walked at its real path and each visited path is reported under the root as
+                // given. A symlinked searchDir below the root is not followed, like any nested symlink.
+                boolean followRoot = normalizedSearchDir.equals(rootDir.normalize()) &&
+                                     Files.isSymbolicLink(normalizedSearchDir);
+                Path start = followRoot ? normalizedSearchDir.toRealPath() : normalizedSearchDir;
+                Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
                     @Override
-                    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    public FileVisitResult preVisitDirectory(Path visited, BasicFileAttributes attrs) {
+                        Path dir = underSearchDir(visited);
                         return isExcluded(dir, rootDir) ||
                                 isIgnoredDirectory(dir, normalizedSearchDir) ?
                                 FileVisitResult.SKIP_SUBTREE :
@@ -221,7 +228,8 @@ public class OmniParser implements Parser {
                     }
 
                     @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    public FileVisitResult visitFile(Path visited, BasicFileAttributes attrs) {
+                        Path file = underSearchDir(visited);
                         if (!attrs.isOther() && !attrs.isSymbolicLink() &&
                                 !isExcluded(file, rootDir) &&
                                 isWithinSizeThreshold(attrs.size())
@@ -234,6 +242,10 @@ public class OmniParser implements Parser {
                             }
                         }
                         return FileVisitResult.CONTINUE;
+                    }
+
+                    private Path underSearchDir(Path visited) {
+                        return followRoot ? normalizedSearchDir.resolve(start.relativize(visited)) : visited;
                     }
                 });
             } catch (IOException e) {

@@ -127,6 +127,28 @@ class OmniParserTest {
           .containsExactlyInAnyOrderElementsOf(folderPaths);
     }
 
+    @Test
+    void acceptedPathsUnderSymlinkedRootWithoutGitRepository(@TempDir Path links) throws Exception {
+        // "build" is an ignored directory name, so directories must be judged by their path under the link.
+        Path real = Files.createDirectories(links.resolve("build/repo"));
+        touch(real.resolve("file.xml"));
+        Path link = links.resolve("repo");
+        createSymLink(link.toFile(), real.toString());
+
+        assertThat(OmniParser.builder(OmniParser.defaultResourceParsers()).build().acceptedPaths(link))
+          .containsExactly(link.resolve("file.xml"));
+    }
+
+    @Test
+    void symlinkedSearchDirBelowRootIsNotFollowed(@TempDir Path shared) throws Exception {
+        touch(shared.resolve("file.xml"));
+        createSymLink(repo.resolve("vendor").toFile(), shared.toString());
+
+        assertThat(OmniParser.builder(OmniParser.defaultResourceParsers()).build()
+          .acceptedPaths(repo, repo.resolve("vendor")))
+          .isEmpty();
+    }
+
     private static List<Path> normalized(List<Path> paths) {
         return paths.stream().map(Path::normalize).toList();
     }
