@@ -214,9 +214,9 @@ public class OmniParser implements Parser {
                 // Files.walkFileTree treats a start path that is a symbolic link as a file. A symlinked
                 // root is walked at its real path and each visited path is reported under the root as
                 // given. A symlinked searchDir below the root is not followed, like any nested symlink.
-                Path start = normalizedSearchDir.equals(rootDir.normalize()) &&
-                             Files.isSymbolicLink(normalizedSearchDir) ?
-                        normalizedSearchDir.toRealPath() : normalizedSearchDir;
+                boolean followRoot = normalizedSearchDir.equals(rootDir.normalize()) &&
+                                     Files.isSymbolicLink(normalizedSearchDir);
+                Path start = followRoot ? normalizedSearchDir.toRealPath() : normalizedSearchDir;
                 Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
                     @Override
                     public FileVisitResult preVisitDirectory(Path visited, BasicFileAttributes attrs) {
@@ -245,8 +245,7 @@ public class OmniParser implements Parser {
                     }
 
                     private Path underSearchDir(Path visited) {
-                        return start == normalizedSearchDir ? visited :
-                                normalizedSearchDir.resolve(start.relativize(visited));
+                        return followRoot ? normalizedSearchDir.resolve(start.relativize(visited)) : visited;
                     }
                 });
             } catch (IOException e) {
