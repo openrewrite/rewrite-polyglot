@@ -127,13 +127,11 @@ class OmniParserTest {
           .containsExactlyInAnyOrderElementsOf(folderPaths);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void acceptedPathsUnderSymlinkedRoot(boolean gitRepo, @TempDir Path links) throws Exception {
+    @Test
+    void acceptedPathsUnderSymlinkedLinkedWorktree(@TempDir Path links) throws Exception {
         touch(repo.resolve("file.xml"));
-        if (gitRepo) {
-            initGit(repo);
-        }
+        // A linked worktree's .git is a file naming the worktree's directory in the main repository
+        Files.writeString(repo.resolve(".git"), "gitdir: /nonexistent/repo/.git/worktrees/feature\n");
         Path link = links.resolve("repo");
         createSymLink(link.toFile(), repo.toString());
 
