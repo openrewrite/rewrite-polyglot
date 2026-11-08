@@ -128,15 +128,34 @@ class OmniParserTest {
     }
 
     @Test
-    void acceptedPathsUnderSymlinkedLinkedWorktree(@TempDir Path links) throws Exception {
+    void acceptedPathsUnderSymlinkedRootWithoutGitRepository(@TempDir Path links) throws Exception {
         touch(repo.resolve("file.xml"));
-        // A linked worktree's .git is a file naming the worktree's directory in the main repository
-        Files.writeString(repo.resolve(".git"), "gitdir: /nonexistent/repo/.git/worktrees/feature\n");
         Path link = links.resolve("repo");
         createSymLink(link.toFile(), repo.toString());
 
         assertThat(OmniParser.builder(OmniParser.defaultResourceParsers()).build().acceptedPaths(link))
           .containsExactly(link.resolve("file.xml"));
+    }
+
+    @Test
+    void acceptedPathsUnderSymlinkedGitRepositoryRoot(@TempDir Path links) throws Exception {
+        touch(repo.resolve("file.xml"));
+        initGit(repo);
+        Path link = links.resolve("repo");
+        createSymLink(link.toFile(), repo.toString());
+
+        assertThat(OmniParser.builder(OmniParser.defaultResourceParsers()).build().acceptedPaths(link))
+          .containsExactly(link.resolve("file.xml"));
+    }
+
+    @Test
+    void symlinkedSearchDirBelowRootIsNotFollowed(@TempDir Path shared) throws Exception {
+        touch(shared.resolve("file.xml"));
+        createSymLink(repo.resolve("vendor").toFile(), shared.toString());
+
+        assertThat(OmniParser.builder(OmniParser.defaultResourceParsers()).build()
+          .acceptedPaths(repo, repo.resolve("vendor")))
+          .isEmpty();
     }
 
     private static List<Path> normalized(List<Path> paths) {

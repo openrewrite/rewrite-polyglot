@@ -211,13 +211,16 @@ public class OmniParser implements Parser {
             }
         } else {
             try {
-                // Files.walkFileTree treats a start path that is a symbolic link as a file, so walk
-                // the real directory and report each visited path under searchDir as the caller gave it.
-                Path realSearchDir = normalizedSearchDir.toRealPath();
-                Files.walkFileTree(realSearchDir, new SimpleFileVisitor<Path>() {
+                // Files.walkFileTree treats a start path that is a symbolic link as a file. A symlinked
+                // root is walked at its real path and each visited path is reported under the root as
+                // given. A symlinked searchDir below the root is not followed, like any nested symlink.
+                Path start = normalizedSearchDir.equals(rootDir.normalize()) &&
+                             Files.isSymbolicLink(normalizedSearchDir) ?
+                        normalizedSearchDir.toRealPath() : normalizedSearchDir;
+                Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
                     @Override
-                    public FileVisitResult preVisitDirectory(Path realDir, BasicFileAttributes attrs) {
-                        Path dir = normalizedSearchDir.resolve(realSearchDir.relativize(realDir));
+                    public FileVisitResult preVisitDirectory(Path visited, BasicFileAttributes attrs) {
+                        Path dir = underSearchDir(visited);
                         return isExcluded(dir, rootDir) ||
                                 isIgnoredDirectory(dir, normalizedSearchDir) ?
                                 FileVisitResult.SKIP_SUBTREE :
@@ -225,8 +228,8 @@ public class OmniParser implements Parser {
                     }
 
                     @Override
-                    public FileVisitResult visitFile(Path realFile, BasicFileAttributes attrs) {
-                        Path file = normalizedSearchDir.resolve(realSearchDir.relativize(realFile));
+                    public FileVisitResult visitFile(Path visited, BasicFileAttributes attrs) {
+                        Path file = underSearchDir(visited);
                         if (!attrs.isOther() && !attrs.isSymbolicLink() &&
                                 !isExcluded(file, rootDir) &&
                                 isWithinSizeThreshold(attrs.size())
@@ -239,6 +242,11 @@ public class OmniParser implements Parser {
                             }
                         }
                         return FileVisitResult.CONTINUE;
+                    }
+
+                    private Path underSearchDir(Path visited) {
+                        return start == normalizedSearchDir ? visited :
+                                normalizedSearchDir.resolve(start.relativize(visited));
                     }
                 });
             } catch (IOException e) {
