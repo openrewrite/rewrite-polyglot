@@ -28,6 +28,7 @@ public class RemoteProgressBarSender implements ProgressBar {
     private DatagramSocket socket;
     private InetAddress address;
     private int port;
+    private volatile boolean canceled = false;
 
     public RemoteProgressBarSender(int port) {
         this(null, port);
@@ -41,12 +42,16 @@ public class RemoteProgressBarSender implements ProgressBar {
             this.socket = new DatagramSocket();
             this.port = port;
             this.address = address == null ? InetAddress.getByName(localhost) : address;
+
+            // Set socket to non-blocking mode for checking cancel messages
+            this.socket.setSoTimeout(1); // 1ms timeout for non-blocking receive
         } catch (UnknownHostException | SocketException e) {
             if ("host.docker.internal".equals(localhost)) {
                 try {
                     this.address = InetAddress.getByName("localhost");
                     this.port = port;
                     this.socket = new DatagramSocket();
+                    this.socket.setSoTimeout(1); // 1ms timeout for non-blocking
                 } catch (UnknownHostException | SocketException ex) {
                     throw new UncheckedIOException(ex);
                 }
@@ -94,6 +99,10 @@ public class RemoteProgressBarSender implements ProgressBar {
 
     private void send(Type type, @Nullable String message) {
         try {
+            // Check for any pending cancel messages before sending
+            drainCancelMessages();
+
+            // Send the message
             for (byte[] packet : RemoteProgressMessage.toPackets(type, message)) {
                 socket.send(new DatagramPacket(packet, packet.length, address, port));
             }
@@ -102,5 +111,51 @@ public class RemoteProgressBarSender implements ProgressBar {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Non-blocking check for any pending cancel messages.
+     * Drains all available cancel messages from the socket buffer.
+     */
+    private void drainCancelMessages() {
+        if (canceled) {
+            return; // Already canceled, no need to check
+        }
+
+        try {
+            byte[] buf = new byte[128];
+            DatagramPacket packet = new DatagramPacket(buf, buf.length);
+
+            // Keep reading while there are messages available (non-blocking due to timeout=0)
+            while (true) {
+                try {
+                    socket.receive(packet);
+
+                    // Parse the received packet to check if it's a cancel message
+                    String received = new String(packet.getData(), 0, packet.getLength());
+                    if (received.contains("CANCEL:true")) {
+                        canceled = true;
+                        // Continue draining to clear the buffer
+                    }
+                } catch (SocketTimeoutException e) {
+                    // No more messages available, done draining
+                    break;
+                }
+            }
+        } catch (IOException ignored) {
+            // Ignore other IO exceptions during cancel check
+        }
+    }
+
+    @Override
+    public void setCanceled(boolean canceled) {
+        this.canceled = canceled;
+    }
+
+    @Override
+    public boolean isCanceled() {
+        // Also check for pending cancel messages when queried
+        drainCancelMessages();
+        return canceled;
     }
 }
